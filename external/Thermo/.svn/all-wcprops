@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/p/morpheus-ms/code/!svn/ver/3/external/Thermo
+END
+EULA.MSFileReader.txt
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/p/morpheus-ms/code/!svn/ver/3/external/Thermo/EULA.MSFileReader.txt
+END
+XRawfile2.dll
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/p/morpheus-ms/code/!svn/ver/1/external/Thermo/XRawfile2.dll
+END
+XRawfile2_x64.dll
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/p/morpheus-ms/code/!svn/ver/1/external/Thermo/XRawfile2_x64.dll
+END
