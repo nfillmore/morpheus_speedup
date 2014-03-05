@@ -526,6 +526,10 @@ namespace Morpheus
                         }
                     }
 #else
+                    OnUpdateStatus(new StatusEventArgs("Reading proteins..."));
+                    List<Protein> protein_list = new List<Protein>(ProteinFastaReader.ReadProteins(protein_fasta_database, onTheFlyDecoys));
+                    OnUpdateStatus(new StatusEventArgs("...done."));
+
                     object progress_lock = new object();
                     int proteins = 0;
                     int old_progress = 0;
@@ -533,7 +537,8 @@ namespace Morpheus
                     parallel_options.MaxDegreeOfParallelism = maximumThreads;
                     Parallel.ForEach<Protein, DatabaseSearcherThreadLocalStorage>(
                         // Source collection:
-                        ProteinFastaReader.ReadProteins(protein_fasta_database, onTheFlyDecoys),
+                        //ProteinFastaReader.ReadProteins(protein_fasta_database, onTheFlyDecoys),
+                        protein_list,
                         // Parallel options:
                         parallel_options, 
                         // Method to initialize the thread-local variable:
