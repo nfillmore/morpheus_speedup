@@ -46,10 +46,36 @@ namespace Morpheus
             PeptideSpectrumMatch.precursorMassType = precursorMassType;
         }
 
+        // Note that this constructor doesn't do anything. Either Init or
+        // CopyFrom needs to be called before this object should be considered
+        // initialized.
+        public PeptideSpectrumMatch()
+        {
+        }
+
+        // Copy all of this objects data members from the other object's data members.
+        public void CopyFrom(PeptideSpectrumMatch other)
+        {
+            Spectrum = other.Spectrum;
+            Peptide = other.Peptide;
+            PrecursorMassErrorDa = other.PrecursorMassErrorDa;
+            PrecursorMassErrorPpm = other.PrecursorMassErrorPpm;
+            MatchingProducts = other.MatchingProducts;
+            TotalProducts = other.TotalProducts;
+            MatchingProductsFraction = other.MatchingProductsFraction;
+            MatchingIntensity = other.MatchingIntensity;
+            MatchingIntensityFraction = other.MatchingIntensityFraction;
+            MorpheusScore = other.MorpheusScore;
+        }
+
         // The array buf is used for temporary storage. It needs to be local to
         // the current thread; no locking is performed. For more info, see
         // AminoAcidPolymer.CalculateProductMasses's comments.
-        public PeptideSpectrumMatch(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance, ref double[] buf, FastQSorter fast_q_sorter)
+        //
+        // Note that the Init method needs to be called before this object can
+        // be used. For more info, see how we use these objects in
+        // DatabaseSearcher.
+        public void Init(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance, ref double[] buf, FastQSorter fast_q_sorter)
         {
             Spectrum = spectrum;
             Peptide = peptide;

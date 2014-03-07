@@ -14,9 +14,11 @@ namespace Morpheus
         public int num_decoy_peptides;
         public int proteins;
         public Dictionary<string, bool> peptides_observed;
-        public PeptideSpectrumMatch[] psms;
+        public PeptideSpectrumMatch psm; // a reusable PeptideSpectrumMatch object
+        public PeptideSpectrumMatch[] psms; // the matches found by this thread
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
-        public FastQSorter fast_q_sorter;
+        public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
+        public int[] mass_spectra_indices; // temporary storage; see TandemMassSpectra.GetTandemMassSpectraInMassRange for more info
 
         public DatabaseSearcherThreadLocalStorage(bool minimizeMemoryUsage, int psmsLength)
         {
@@ -32,6 +34,8 @@ namespace Morpheus
             psms = new PeptideSpectrumMatch[psmsLength];
             product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
             fast_q_sorter = new FastQSorter();
+            mass_spectra_indices = new int[1]; // XXX make this bigger - small for debugging
+            psm = new PeptideSpectrumMatch();
         }
     }
 
@@ -593,19 +597,58 @@ namespace Morpheus
                                 peptide.SetFixedModifications(fixedModifications);
                                 foreach(Peptide modified_peptide in peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms))
                                 {
-                                    foreach(TandemMassSpectrum spectrum in precursorMonoisotopicPeakCorrection ?
-                                        spectra.GetTandemMassSpectraInMassRange(precursorMassType == MassType.Average ? modified_peptide.AverageMass : modified_peptide.MonoisotopicMass, precursorMassTolerance, minimumPrecursorMonoisotopicPeakOffset, maximumPrecursorMonoisotopicPeakOffset) :
-                                        spectra.GetTandemMassSpectraInMassRange(precursorMassType == MassType.Average ? modified_peptide.AverageMass : modified_peptide.MonoisotopicMass, precursorMassTolerance))
+                                    int minimum_precursor_monoisotopic_peak_offset_or_zero;
+                                    int maximum_precursor_monoisotopic_peak_offset_or_zero;
+                                    if(precursorMonoisotopicPeakCorrection)
                                     {
-                                        PeptideSpectrumMatch psm = new PeptideSpectrumMatch(spectrum, modified_peptide, productMassTolerance, ref thread_local_storage.product_masses_buf, thread_local_storage.fast_q_sorter);
-                                        //lock(psms)
-                                        //{
-                                            PeptideSpectrumMatch current_best_psm = thread_local_storage.psms[spectrum.SpectrumNumber - 1];
-                                            if(current_best_psm == null || PeptideSpectrumMatch.DescendingMorpheusScoreComparison(psm, current_best_psm) < 0)
-                                            {
-                                                thread_local_storage.psms[spectrum.SpectrumNumber - 1] = psm;
-                                            }
-                                        //}
+                                        minimum_precursor_monoisotopic_peak_offset_or_zero = minimumPrecursorMonoisotopicPeakOffset;
+                                        maximum_precursor_monoisotopic_peak_offset_or_zero = maximumPrecursorMonoisotopicPeakOffset;
+                                    }
+                                    else
+                                    {
+                                        minimum_precursor_monoisotopic_peak_offset_or_zero = 0;
+                                        maximum_precursor_monoisotopic_peak_offset_or_zero = 0;
+                                    }
+
+                                    double mass;
+                                    if(precursorMassType == MassType.Average)
+                                        mass = modified_peptide.AverageMass;
+                                    else
+                                        mass = modified_peptide.MonoisotopicMass;
+
+                                    int num_mass_spectra
+                                        = spectra.GetTandemMassSpectraInMassRange(mass,
+                                                                                  precursorMassTolerance,
+                                                                                  minimum_precursor_monoisotopic_peak_offset_or_zero,
+                                                                                  maximum_precursor_monoisotopic_peak_offset_or_zero,
+                                                                                  ref thread_local_storage.mass_spectra_indices);
+  
+                                    for(int msidx = 0; msidx < num_mass_spectra; ++msidx)
+                                    {
+                                        // Initialize new peptide spectrum match from the spectrum at
+                                        // index msidx, but do so reusing the thread-local storage instead
+                                        // of allocating a new PeptideSpectrumMatch object.
+                                        thread_local_storage.psm.Init(spectra[msidx], modified_peptide, productMassTolerance,
+                                                                      ref thread_local_storage.product_masses_buf,
+                                                                      thread_local_storage.fast_q_sorter);
+                                        // If there is not already a best match (in this thread) for the 
+                                        // current spectrum, allocate a new PeptideSpectrumMatch object to 
+                                        // store the best match (for this thread).
+                                        PeptideSpectrumMatch current_best_psm = thread_local_storage.psms[spectra[msidx].SpectrumNumber - 1];
+                                        if(current_best_psm == null)
+                                        {
+                                            thread_local_storage.psms[spectra[msidx].SpectrumNumber - 1] = new PeptideSpectrumMatch();
+                                        }
+                                        // If there is not already a best match (in this thread), or the existing 
+                                        // best match is worse than the current one, copy the current match as
+                                        // the best match.
+                                        if(current_best_psm == null ||
+                                           PeptideSpectrumMatch.DescendingMorpheusScoreComparison(thread_local_storage.psm,
+                                                                                                  current_best_psm) < 0)
+                                        {
+                                            thread_local_storage.psms[spectra[msidx].SpectrumNumber - 1]
+                                                .CopyFrom(thread_local_storage.psm);
+                                        }
                                     }
                                 }
                             }

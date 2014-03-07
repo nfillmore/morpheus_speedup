@@ -5,14 +5,28 @@ namespace Morpheus
 {
     public partial class TandemMassSpectra
     {
-        public IEnumerable<TandemMassSpectrum> GetTandemMassSpectraInMassRange(double precursorMass, MassTolerance precursorMassTolerance)
+        // This function looks for spectra in the specified range. The original
+        // version of this function returned IEnumerable<TandemMassSpectrum>,
+        // and this is still conceptually what we are trying to do. However,
+        // the above appears to generate a lot of garbage, because this
+        // function occurs inside an inner loop of DatabaseSearcher.DoSearch.
+        //
+        // Thus, instead, we require the caller to preallocate an array of
+        // spectrum indices, "indices", and pass this to us by reference. This
+        // function fills in this array (from the beginning) with the indices
+        // of the spectra in the specified range. If the array isn't big
+        // enough, it is reallocated with double the size. The number of
+        // filled-in elements of the array, i.e., the number of spectra in the
+        // specified range, is returned. (However, to emphasize, in general,
+        // the indices array will be bigger than this.)
+        //
+        // If precursorMonoisotopicPeakCorrection is false, then pass 
+        //   minimumMonoisotopicPeakOffset = 0 and
+        //   maximumMonoisotopicPeakOffset = 0.
+        public int GetTandemMassSpectraInMassRange(double precursorMass, MassTolerance precursorMassTolerance, 
+            int minimumMonoisotopicPeakOffset, int maximumMonoisotopicPeakOffset, ref int[] indices)
         {
-            return GetTandemMassSpectraInMassRange(precursorMass, precursorMassTolerance, 0, 0);
-        }
-
-        public IEnumerable<TandemMassSpectrum> GetTandemMassSpectraInMassRange(double precursorMass, MassTolerance precursorMassTolerance, 
-            int minimumMonoisotopicPeakOffset, int maximumMonoisotopicPeakOffset)
-        {
+            int j = 0;
             for(int i = minimumMonoisotopicPeakOffset; i <= maximumMonoisotopicPeakOffset; i++)
             {
                 double precursor_mass = precursorMass + i * Constants.C12_C13_MASS_DIFFERENCE;
@@ -29,11 +43,21 @@ namespace Morpheus
                 {
                     if(this[index].PrecursorMass <= maximum_precursor_mass)
                     {
-                        yield return this[index];
+                        // Record index as one of the spectra in the range. If
+                        // the list of spectrum indices is now not big enough,
+                        // resize it.
+                        indices[j] = index;
+                        j++;
+                        if (j >= indices.Length)
+                        {
+                            System.Array.Resize<int>(ref indices, j*2);
+                        }
                     }
                     index--;
                 }
             }
+            int number_of_indices = j;
+            return number_of_indices;
         }
 
         private int BinarySearch(double precursorMass)
