@@ -15,6 +15,8 @@ namespace Morpheus
         public int proteins;
         public Dictionary<string, bool> peptides_observed;
         public PeptideSpectrumMatch[] psms;
+        public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
+        public FastQSorter fast_q_sorter;
 
         public DatabaseSearcherThreadLocalStorage(bool minimizeMemoryUsage, int psmsLength)
         {
@@ -28,6 +30,8 @@ namespace Morpheus
                 this.peptides_observed = null;
 
             psms = new PeptideSpectrumMatch[psmsLength];
+            product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
+            fast_q_sorter = new FastQSorter();
         }
     }
 
@@ -593,7 +597,7 @@ namespace Morpheus
                                         spectra.GetTandemMassSpectraInMassRange(precursorMassType == MassType.Average ? modified_peptide.AverageMass : modified_peptide.MonoisotopicMass, precursorMassTolerance, minimumPrecursorMonoisotopicPeakOffset, maximumPrecursorMonoisotopicPeakOffset) :
                                         spectra.GetTandemMassSpectraInMassRange(precursorMassType == MassType.Average ? modified_peptide.AverageMass : modified_peptide.MonoisotopicMass, precursorMassTolerance))
                                     {
-                                        PeptideSpectrumMatch psm = new PeptideSpectrumMatch(spectrum, modified_peptide, productMassTolerance);
+                                        PeptideSpectrumMatch psm = new PeptideSpectrumMatch(spectrum, modified_peptide, productMassTolerance, ref thread_local_storage.product_masses_buf, thread_local_storage.fast_q_sorter);
                                         //lock(psms)
                                         //{
                                             PeptideSpectrumMatch current_best_psm = thread_local_storage.psms[spectrum.SpectrumNumber - 1];
@@ -634,8 +638,8 @@ namespace Morpheus
                         thread_local_storage => {
                             // Update the relevant non-thread storage with the new stuff computed in this thread.
                             //
-                            // We don't need to do anything with thread_local_storage.peptides_observed because
-                            // it isn't used outside this foreach loop.
+                            // We don't need to do anything with thread_local_storage.peptides_observed or
+                            // thread_local_storage.product_masses_buf, because they aren't used outside this foreach loop.
                             //
                             // We update target and decoy counts inside the same lock(psms) used for the best peptide
                             // spectrum matches, because (i) C# doesn't allow us to lock integers, (ii) there is no 

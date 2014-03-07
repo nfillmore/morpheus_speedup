@@ -159,6 +159,7 @@
     </Compile>
     <Compile Include="Protease.cs" />
     <Compile Include="Protein.cs" />
+    <Compile Include="FastQSorter.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="amino_acids.tsv">

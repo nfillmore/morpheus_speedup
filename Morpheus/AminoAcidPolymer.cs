@@ -558,25 +558,60 @@ namespace Morpheus
             }
         }
 
-        public List<double> CalculateProductMasses(IEnumerable<ProductType> productTypes)
+        // This method is called, via PeptideSpectrumMatch.ScoreMatch, in a
+        // tight loop in DatabaseSearcher.DoSearch. In the original version of
+        // this method, a List<Double> was created as product_masses and
+        // returned it. Then, PeptideSpectrumMatch.ScoreMatch converted this
+        // List<Double> to an array of doubles. Profiling showed that these
+        // allocations created a bottleneck in the memory allocator, especially
+        // on machines with a lot of cores (since allocation seems to involve
+        // locks, even using the SGEN allocator, at least on Linux).
+        //
+        // Thus, in the current version of this function, we take the
+        // product_masses array by reference. If this array isn't big enough to
+        // store the calculated product masses, we resize it. We then fill in
+        // the beginning of this array with the calculated product masses.
+        // Finally, we return total_products, the number of elements in the
+        // array that are actually used.
+        //
+        // It is important to emphasize that product_masses.Length !=
+        // total_products in general. That is, the number of elements in the
+        // array does not equal the number of elements that are filled in with
+        // meaningful info.
+        public int CalculateProductMasses(ProductType[] productTypes, ref double[] product_masses, FastQSorter fast_q_sorter)
         {
-            List<double> product_masses = new List<double>(2 * (Length - 1));
+            // If product_masses isn't big enough to store all the product
+            // masses we might want to store, resize it.
+            int max_products = 2 * (Length - 1);
+            if(product_masses.Length < max_products)
+            {
+                System.Array.Resize<double>(ref product_masses, max_products);
+            }
+            //List<double> product_masses = new List<double>(2 * (Length - 1));
 
+            int i = 0;
             for(int r = 1; r < Length; r++)
             {
-                foreach(ProductType product_type in productTypes)
+                //foreach(ProductType product_type in productTypes)
+                for(int p = 0; p < productTypes.Length; p++)
                 {
-                    if(!(product_type == ProductType.c && r < Length && this[r] == 'P') &&
-                       !(product_type == ProductType.zdot && Length - r < Length && this[Length - r] == 'P'))
+                    if(!(productTypes[p] == ProductType.c && r < Length && this[r] == 'P') &&
+                       !(productTypes[p] == ProductType.zdot && Length - r < Length && this[Length - r] == 'P'))
                     {
-                        double product_mass = CalculateProductMass(product_type, r);
-                        product_masses.Add(product_mass);
+                        double product_mass = CalculateProductMass(productTypes[p], r);
+                        //product_masses.Add(product_mass);
+                        product_masses[i] = product_mass;
+                        ++i;
                     }
                 }
             }
+            int total_products = i;
 
-            product_masses.Sort();
-            return product_masses;
+            //product_masses.Sort();
+            //return product_masses;
+            //Nate old: System.Array.Sort<double>(product_masses, 0, total_products);
+            fast_q_sorter.Sort(product_masses, 0, total_products);
+            return total_products;
         }
 
         protected IEnumerable<Dictionary<int, Modification>> GetVariableModificationPatterns(Dictionary<int, List<Modification>> possibleVariableModifications)

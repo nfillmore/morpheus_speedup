@@ -46,7 +46,10 @@ namespace Morpheus
             PeptideSpectrumMatch.precursorMassType = precursorMassType;
         }
 
-        public PeptideSpectrumMatch(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance)
+        // The array buf is used for temporary storage. It needs to be local to
+        // the current thread; no locking is performed. For more info, see
+        // AminoAcidPolymer.CalculateProductMasses's comments.
+        public PeptideSpectrumMatch(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance, ref double[] buf, FastQSorter fast_q_sorter)
         {
             Spectrum = spectrum;
             Peptide = peptide;
@@ -54,16 +57,19 @@ namespace Morpheus
             PrecursorMassErrorDa = spectrum.PrecursorMass - (precursorMassType == MassType.Average ? peptide.AverageMass : peptide.MonoisotopicMass);
             PrecursorMassErrorPpm = PrecursorMassErrorDa / (precursorMassType == MassType.Average ? peptide.AverageMass : peptide.MonoisotopicMass) * 1e6;
 
-            ScoreMatch(productMassTolerance);
+            ScoreMatch(productMassTolerance, ref buf, fast_q_sorter);
         }
 
-        private void ScoreMatch(MassTolerance productMassTolerance)
+        private void ScoreMatch(MassTolerance productMassTolerance, ref double[] theoretical_product_masses, FastQSorter fast_q_sorter)
         {
-            double[] theoretical_product_masses = Peptide.CalculateProductMasses(PRODUCT_TYPES[Spectrum.FragmentationMethod]).ToArray();
-            TotalProducts = theoretical_product_masses.Length;
+            //double[] theoretical_product_masses = Peptide.CalculateProductMasses(PRODUCT_TYPES[Spectrum.FragmentationMethod]).ToArray();
+            //TotalProducts = theoretical_product_masses.Length;
+            ProductType[] product_types = PRODUCT_TYPES[Spectrum.FragmentationMethod];
+            TotalProducts = Peptide.CalculateProductMasses(product_types, ref theoretical_product_masses, fast_q_sorter);
 
             // speed optimizations
-            int num_theoretical_products = theoretical_product_masses.Length;
+            //int num_theoretical_products = theoretical_product_masses.Length;
+            int num_theoretical_products = TotalProducts;
             double[] experimental_masses = Spectrum.Masses;
             double[] experimental_intensities = Spectrum.Intensities;
             int num_experimental_peaks = experimental_masses.Length;
