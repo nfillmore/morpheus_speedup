@@ -258,9 +258,8 @@ namespace Morpheus
             initializeProductArrays = true;
             fixedModifications = null;
             variableModifications = null;
-            cumulativeNTerminalMass = null;
-            cumulativeCTerminalMass = null;
-            // optimize this: private void InitializeProductArrays()
+            //cumulativeNTerminalMass = null;
+            //cumulativeCTerminalMass = null;
         }
 
 
@@ -403,7 +402,11 @@ namespace Morpheus
         {
             double mass_shift;
 
-            cumulativeNTerminalMass = new double[Length];
+            //cumulativeNTerminalMass = new double[Length];
+            if (cumulativeNTerminalMass == null || Length >= cumulativeNTerminalMass.Length)
+            {
+                System.Array.Resize<double>(ref cumulativeNTerminalMass, Length);
+            }
 
             mass_shift = 0.0;
             // fixed modifications on protein N-terminus
@@ -477,7 +480,11 @@ namespace Morpheus
                 cumulativeNTerminalMass[r] = cumulativeNTerminalMass[r - 1] + (productMassType == MassType.Average ? AminoAcidMasses.GetAverageMass(this[r - 1]) : AminoAcidMasses.GetMonoisotopicMass(this[r - 1])) + mass_shift;
             }
 
-            cumulativeCTerminalMass = new double[Length];
+            //cumulativeCTerminalMass = new double[Length];
+            if (cumulativeCTerminalMass == null || Length >= cumulativeCTerminalMass.Length)
+            {
+                System.Array.Resize<double>(ref cumulativeCTerminalMass, Length);
+            }
 
             mass_shift = 0.0;
             // fixed modifications on protein C-terminus
