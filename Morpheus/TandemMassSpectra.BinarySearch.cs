@@ -46,12 +46,12 @@ namespace Morpheus
                         // Record index as one of the spectra in the range. If
                         // the list of spectrum indices is now not big enough,
                         // resize it.
-                        indices[j] = index;
-                        j++;
                         if (j >= indices.Length)
                         {
                             System.Array.Resize<int>(ref indices, j*2);
                         }
+                        indices[j] = index;
+                        j++;
                     }
                     index--;
                 }

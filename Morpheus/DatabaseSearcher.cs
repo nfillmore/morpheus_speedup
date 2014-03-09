@@ -19,6 +19,8 @@ namespace Morpheus
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public int[] mass_spectra_indices; // temporary storage; see TandemMassSpectra.GetTandemMassSpectraInMassRange for more info
+        public Peptide[] peptides; // temporary storage
+        public Peptide[] modified_peptides; // temporary storage
 
         public DatabaseSearcherThreadLocalStorage(bool minimizeMemoryUsage, int psmsLength)
         {
@@ -36,6 +38,8 @@ namespace Morpheus
             fast_q_sorter = new FastQSorter();
             mass_spectra_indices = new int[1]; // XXX make this bigger - small for debugging
             psm = new PeptideSpectrumMatch();
+            Peptide.ReallocPeptideBuf(ref peptides, 1);
+            Peptide.ReallocPeptideBuf(ref modified_peptides, 1); // XXX make this bigger - small for debugging
         }
     }
 
@@ -554,8 +558,11 @@ namespace Morpheus
                         // Method invoked by the loop on each iteration:
                         (protein, parallel_loop_state, thread_local_storage) =>
                         {
-                            foreach(Peptide peptide in protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior, null, null))
+                            int num_peptides = protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior,
+                                                              ref thread_local_storage.peptides, null, null);
+                            for (int p = 0; p < num_peptides; ++p)
                             {
+                                Peptide peptide = thread_local_storage.peptides[p];
                                 if(peptide.Target)
                                 {
                                     //Interlocked.Increment(ref num_target_peptides);
@@ -595,8 +602,12 @@ namespace Morpheus
                                 }
 
                                 peptide.SetFixedModifications(fixedModifications);
-                                foreach(Peptide modified_peptide in peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms))
+                                //foreach(Peptide modified_peptide in peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms))
+                                int num_modified_peptides = peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms,
+                                                                                                ref thread_local_storage.modified_peptides);
+                                for (int mp = 0; mp < num_modified_peptides; ++mp)
                                 {
+                                    Peptide modified_peptide = thread_local_storage.modified_peptides[mp];
                                     int minimum_precursor_monoisotopic_peak_offset_or_zero;
                                     int maximum_precursor_monoisotopic_peak_offset_or_zero;
                                     if(precursorMonoisotopicPeakCorrection)

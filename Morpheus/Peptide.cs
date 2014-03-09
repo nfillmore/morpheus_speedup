@@ -42,9 +42,36 @@ namespace Morpheus
             }
         }
 
-        public Peptide(Protein parent, int startResidueNumber, int endResidueNumber, int missedCleavages)
-            : base(parent.BaseSequence.Substring(startResidueNumber - 1, endResidueNumber - startResidueNumber + 1), true)
+        // public Peptide(Protein parent, int startResidueNumber, int endResidueNumber, int missedCleavages)
+        //     : base(parent.BaseSequence.Substring(startResidueNumber - 1, endResidueNumber - startResidueNumber + 1), true)
+        // {
+        //     Parent = parent;
+        //     StartResidueNumber = startResidueNumber;
+        //     EndResidueNumber = endResidueNumber;
+        //     MissedCleavages = missedCleavages;
+        //     if(startResidueNumber - 1 - 1 >= 0)
+        //     {
+        //         PreviousAminoAcid = parent[startResidueNumber - 1 - 1];
+        //     }
+        //     else
+        //     {
+        //         PreviousAminoAcid = '-';
+        //     }
+        //     if(endResidueNumber - 1 + 1 < parent.Length)
+        //     {
+        //         NextAminoAcid = parent[endResidueNumber - 1 + 1];
+        //     }
+        //     else
+        //     {
+        //         NextAminoAcid = '-';
+        //     }
+        // }
+
+        // private Peptide(Peptide peptide) : this(peptide.Parent, peptide.StartResidueNumber, peptide.EndResidueNumber, peptide.MissedCleavages) { }
+
+        public void Init(Protein parent, int startResidueNumber, int endResidueNumber, int missedCleavages)
         {
+            BaseInit(parent.BaseSequence.Substring(startResidueNumber - 1, endResidueNumber - startResidueNumber + 1), true);
             Parent = parent;
             StartResidueNumber = startResidueNumber;
             EndResidueNumber = endResidueNumber;
@@ -67,10 +94,14 @@ namespace Morpheus
             }
         }
 
-        private Peptide(Peptide peptide) : this(peptide.Parent, peptide.StartResidueNumber, peptide.EndResidueNumber, peptide.MissedCleavages) { }
-
-        public IEnumerable<Peptide> GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms)
+        public void CopyFrom(Peptide peptide)
         {
+            Init(peptide.Parent, peptide.StartResidueNumber, peptide.EndResidueNumber, peptide.MissedCleavages);
+        }
+
+        public int GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms, ref Peptide[] peptides)
+        {
+            int p = 0;
             Dictionary<int, List<Modification>> possible_modifications = new Dictionary<int, List<Modification>>(Length + 4);
 
             foreach(Modification variable_modification in variableModifications)
@@ -159,14 +190,36 @@ namespace Morpheus
             int variable_modification_isoforms = 0;
             foreach(Dictionary<int, Modification> kvp in GetVariableModificationPatterns(possible_modifications))
             {
-                Peptide peptide = new Peptide(this);
-                peptide.FixedModifications = FixedModifications;
-                peptide.VariableModifications = kvp;
-                yield return peptide;
+                // Peptide peptide = new Peptide(this);
+                // peptide.FixedModifications = FixedModifications;
+                // peptide.VariableModifications = kvp;
+                // yield return peptide;
+                ReallocPeptideBuf(ref peptides, p);
+                peptides[p].CopyFrom(this);
+                peptides[p].FixedModifications = FixedModifications;
+                peptides[p].VariableModifications = kvp;
+                ++p;
                 variable_modification_isoforms++;
                 if(variable_modification_isoforms == maximumVariableModificationIsoforms)
                 {
-                    yield break;
+                    //yield break;
+                    break;
+                }
+            }
+            int num_peptides = p;
+            return p;
+        }
+
+        public static void ReallocPeptideBuf(ref Peptide[] peptides, int p)
+        {
+            int old_length = (peptides == null) ? 0 : peptides.Length;
+            if (p >= old_length)
+            {
+                int new_length = 2*p;
+				System.Array.Resize<Peptide>(ref peptides, new_length);
+                for(int q = old_length; q < new_length; ++q)
+                {
+                    peptides[q] = new Peptide();
                 }
             }
         }

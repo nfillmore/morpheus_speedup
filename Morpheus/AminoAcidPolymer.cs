@@ -233,7 +233,19 @@ namespace Morpheus
 
         private static readonly Regex INVALID_AMINO_ACIDS = new Regex("[^ACDEFGHIKLMNPQRSTVWY]", RegexOptions.Compiled);
 
-        protected AminoAcidPolymer(string baseSequence, bool prevalidated)
+        // protected AminoAcidPolymer(string baseSequence, bool prevalidated)
+        // {
+        //     if(prevalidated)
+        //     {
+        //         BaseSequence = baseSequence;
+        //     }
+        //     else
+        //     {
+        //         BaseSequence = INVALID_AMINO_ACIDS.Replace(baseSequence, string.Empty);
+        //     }
+        // }
+
+        protected void BaseInit(string baseSequence, bool prevalidated)
         {
             if(prevalidated)
             {
@@ -243,7 +255,14 @@ namespace Morpheus
             {
                 BaseSequence = INVALID_AMINO_ACIDS.Replace(baseSequence, string.Empty);
             }
+            initializeProductArrays = true;
+            fixedModifications = null;
+            variableModifications = null;
+            cumulativeNTerminalMass = null;
+            cumulativeCTerminalMass = null;
+            // optimize this: private void InitializeProductArrays()
         }
+
 
         public override string ToString()
         {
