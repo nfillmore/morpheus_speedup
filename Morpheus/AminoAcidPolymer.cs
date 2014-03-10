@@ -289,9 +289,23 @@ namespace Morpheus
             }
         }
 
-        public void SetFixedModifications(IEnumerable<Modification> fixedModifications)
+        // This method sets the fixed modifications for this polymer, based on
+        // the fixedModifications passed as the first argument.
+        //
+        // The second argument, fixedModificationsBuffer, should be
+        // thread-local storage. We will store the the fixed modifications for
+        // this peptide in this buffer. The point of passing in this buffer is
+        // to avoid an allocation of a new dictionary within this method, which
+        // profiling shows to be a major source of garbage. Note that since
+        // this.fixedModifications (= fixedModificationsBuffer) is used in
+        // other methods in this class, you won't want to reuse the
+        // fixedModificationsBuffer elsewhere until you are completely done
+        // processing this AminoAcidPolymer object.
+        public void SetFixedModifications(IEnumerable<Modification> fixedModifications, Dictionary<int, List<Modification>> fixedModificationsBuffer)
         {
-            this.fixedModifications = new Dictionary<int, List<Modification>>(Length + 4);
+            //this.fixedModifications = new Dictionary<int, List<Modification>>(Length + 4);
+            this.fixedModifications = fixedModificationsBuffer;
+            this.fixedModifications.Clear();
 
             foreach(Modification fixed_modification in fixedModifications)
             {

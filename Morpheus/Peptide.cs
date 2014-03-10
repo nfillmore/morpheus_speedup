@@ -101,10 +101,14 @@ namespace Morpheus
             Init(peptide.Parent, peptide.StartResidueNumber, peptide.EndResidueNumber, peptide.MissedCleavages);
         }
 
-        public int GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms, ref Peptide[] peptides)
+        // We pass in a possible_modifications buffer instead of allocating one
+        // below because profiling showed that the allocation of new
+        // dictionaries in this method is a major source of garbage.
+        public int GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms, ref Peptide[] peptides, Dictionary<int, List<Modification>> possible_modifications)
         {
             int p = 0;
-            Dictionary<int, List<Modification>> possible_modifications = new Dictionary<int, List<Modification>>(Length + 4);
+            //Dictionary<int, List<Modification>> possible_modifications = new Dictionary<int, List<Modification>>(Length + 4);
+            possible_modifications.Clear();
 
             foreach(Modification variable_modification in variableModifications)
             {

@@ -21,6 +21,8 @@ namespace Morpheus
         public int[] mass_spectra_indices; // temporary storage; see TandemMassSpectra.GetTandemMassSpectraInMassRange for more info
         public Peptide[] peptides; // temporary storage
         public Peptide[] modified_peptides; // temporary storage
+        public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
+        public Dictionary<int, List<Modification>> possible_modifications_buffer; // temporary storage
 
         public DatabaseSearcherThreadLocalStorage(bool minimizeMemoryUsage, int psmsLength)
         {
@@ -40,6 +42,8 @@ namespace Morpheus
             psm = new PeptideSpectrumMatch();
             Peptide.ReallocPeptideBuf(ref peptides, 1);
             Peptide.ReallocPeptideBuf(ref modified_peptides, 1); // XXX make this bigger - small for debugging
+            fixed_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
+            possible_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
         }
     }
 
@@ -605,10 +609,11 @@ namespace Morpheus
                                     //}
                                 }
 
-                                peptide.SetFixedModifications(fixedModifications);
+                                peptide.SetFixedModifications(fixedModifications, thread_local_storage.fixed_modifications_buffer);
                                 //foreach(Peptide modified_peptide in peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms))
                                 int num_modified_peptides = peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms,
-                                                                                                ref thread_local_storage.modified_peptides);
+                                                                                                ref thread_local_storage.modified_peptides,
+                                                                                                thread_local_storage.possible_modifications_buffer);
                                 for (int mp = 0; mp < num_modified_peptides; ++mp)
                                 {
                                     Peptide modified_peptide = thread_local_storage.modified_peptides[mp];
