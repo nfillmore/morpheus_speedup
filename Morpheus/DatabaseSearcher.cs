@@ -13,7 +13,7 @@ namespace Morpheus
         public int num_target_peptides;
         public int num_decoy_peptides;
         public int proteins;
-        public Dictionary<string, bool> peptides_observed;
+        public Dictionary<FastSubstring, bool> peptides_observed;
         public PeptideSpectrumMatch psm; // a reusable PeptideSpectrumMatch object
         public PeptideSpectrumMatch[] psms; // the matches found by this thread
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
@@ -29,7 +29,7 @@ namespace Morpheus
             this.proteins = 0;
 
             if (!minimizeMemoryUsage)
-                this.peptides_observed = new Dictionary<string, bool>();
+                this.peptides_observed = new Dictionary<FastSubstring, bool>(new LeucineSequenceEqualityComparer());
             else
                 this.peptides_observed = null;
 
@@ -582,12 +582,16 @@ namespace Morpheus
                                     // Then perform the search as usual.
                                     // If we have already seen it and it was decoy or this time it is target, we don't need to search it again, skip the peptide.
                                     // Otherwise, update the dictionary to reflect that we have now seen it as a decoy and perform the search.
+                                    //
+                                    // Note that although we are looking up the BaseSequence, the peptides_observed dictionary uses the 
+                                    // LeucineSequenceEqualityComparer to hash and check for equality. This, this is equivalent to storing
+                                    // BaseLeucineSequence in the dictionary, as was originally done here.
                                     //lock(peptides_observed)
                                     //{
                                         bool observed_as_decoy = false;
-                                        if(!thread_local_storage.peptides_observed.TryGetValue(peptide.BaseLeucineSequence, out observed_as_decoy))
+                                        if(!thread_local_storage.peptides_observed.TryGetValue(peptide.BaseSequence, out observed_as_decoy))
                                         {
-                                            thread_local_storage.peptides_observed.Add(peptide.BaseLeucineSequence, peptide.Decoy);
+                                            thread_local_storage.peptides_observed.Add(peptide.BaseSequence, peptide.Decoy);
                                         }
                                         else
                                         {
@@ -596,7 +600,7 @@ namespace Morpheus
                                                 continue;
                                             }
 
-                                            thread_local_storage.peptides_observed[peptide.BaseLeucineSequence] = true;
+                                            thread_local_storage.peptides_observed[peptide.BaseSequence] = true;
                                         }
                                     //}
                                 }

@@ -196,7 +196,7 @@ namespace Morpheus
             sb.Append(Spectrum.Masses.Length.ToString() + '\t');
             sb.Append(Spectrum.TotalIntensity.ToString() + '\t');
             sb.Append(Peptide.ExtendedSequence + '\t');
-            sb.Append(Peptide.BaseSequence + '\t');
+            sb.Append(Peptide.BaseSequence.ToString() + '\t');
             sb.Append(Peptide.Parent.Description + '\t');
             sb.Append(Peptide.StartResidueNumber.ToString() + '\t');
             sb.Append(Peptide.EndResidueNumber.ToString() + '\t');

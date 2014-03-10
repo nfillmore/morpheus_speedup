@@ -26,6 +26,7 @@ namespace Morpheus
             get { return !Decoy; }
         }
 
+        // this doesn't need to be efficient
         public string ExtendedSequence
         {
             get
@@ -34,6 +35,7 @@ namespace Morpheus
             }
         }
 
+        // this isn't used anywhere
         public string ExtendedLeucineSequence
         {
             get
@@ -71,7 +73,7 @@ namespace Morpheus
 
         public void Init(Protein parent, int startResidueNumber, int endResidueNumber, int missedCleavages)
         {
-            BaseInit(parent.BaseSequence.Substring(startResidueNumber - 1, endResidueNumber - startResidueNumber + 1), true);
+            BaseInit(new FastSubstring(parent.BaseSequence, startResidueNumber - 1, endResidueNumber - startResidueNumber + 1));
             Parent = parent;
             StartResidueNumber = startResidueNumber;
             EndResidueNumber = endResidueNumber;

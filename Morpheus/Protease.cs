@@ -73,14 +73,14 @@ namespace Morpheus
             {
                 foreach(string c in SequencesInducingCleavage)
                 {
-                    if((CleavageTerminus != Terminus.N && i - c.Length + 1 >= 0 && aminoAcidPolymer.BaseSequence.Substring(i - c.Length + 1, c.Length).Equals(c, StringComparison.InvariantCultureIgnoreCase))
-                        || (CleavageTerminus == Terminus.N && i + 1 + c.Length <= aminoAcidPolymer.Length && aminoAcidPolymer.BaseSequence.Substring(i + 1, c.Length).Equals(c, StringComparison.InvariantCultureIgnoreCase)))
+                    if((CleavageTerminus != Terminus.N && i - c.Length + 1 >= 0 && aminoAcidPolymer.BaseSequence.Substring(i - c.Length + 1, c.Length).EqualsIgnoringCase(c))
+                        || (CleavageTerminus == Terminus.N && i + 1 + c.Length <= aminoAcidPolymer.Length && aminoAcidPolymer.BaseSequence.Substring(i + 1, c.Length).EqualsIgnoringCase(c)))
                     {
                         bool cleave = true;
                         foreach(string nc in SequencesPreventingCleavage)
                         {
-                            if((CleavageTerminus != Terminus.N && i + 1 + nc.Length <= aminoAcidPolymer.Length && aminoAcidPolymer.BaseSequence.Substring(i + 1, nc.Length).Equals(nc, StringComparison.InvariantCultureIgnoreCase)) 
-                                || (CleavageTerminus == Terminus.N && i - nc.Length + 1 >= 0 && aminoAcidPolymer.BaseSequence.Substring(i - nc.Length + 1, nc.Length).Equals(nc, StringComparison.InvariantCultureIgnoreCase)))
+                            if((CleavageTerminus != Terminus.N && i + 1 + nc.Length <= aminoAcidPolymer.Length && aminoAcidPolymer.BaseSequence.Substring(i + 1, nc.Length).EqualsIgnoringCase(nc)) 
+                                || (CleavageTerminus == Terminus.N && i - nc.Length + 1 >= 0 && aminoAcidPolymer.BaseSequence.Substring(i - nc.Length + 1, nc.Length).EqualsIgnoringCase(nc)))
                             {
                                 cleave = false;
                                 break;

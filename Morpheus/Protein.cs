@@ -25,7 +25,15 @@ namespace Morpheus
         public Protein(string sequence, string description)
             //: base(sequence, false)
         {
-            BaseInit(sequence, false);
+            sequence = INVALID_AMINO_ACIDS.Replace(sequence, string.Empty);
+            BaseInit(new FastSubstring(sequence, 0, sequence.Length));
+            Description = description;
+            IdentifiedPeptides = new Dictionary<string, List<Peptide>>();
+        }
+
+        public Protein(FastSubstring sequence, string description)
+        {
+            BaseInit(sequence);
             Description = description;
             IdentifiedPeptides = new Dictionary<string, List<Peptide>>();
         }

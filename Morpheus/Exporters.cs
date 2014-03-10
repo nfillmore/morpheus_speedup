@@ -255,7 +255,7 @@ namespace Morpheus
                     output.WriteStartElement("search_result");
                     output.WriteStartElement("search_hit");
                     output.WriteAttributeString("hit_rank", "1");
-                    output.WriteAttributeString("peptide", psm.Peptide.BaseSequence);
+                    output.WriteAttributeString("peptide", psm.Peptide.BaseSequence.ToString());
                     output.WriteAttributeString("peptide_prev_aa", psm.Peptide.PreviousAminoAcid.ToString());
                     output.WriteAttributeString("peptide_next_aa", psm.Peptide.NextAminoAcid.ToString());
                     output.WriteAttributeString("protein", psm.Peptide.Parent.Description);
@@ -269,7 +269,7 @@ namespace Morpheus
                     if((psm.Peptide.FixedModifications != null && psm.Peptide.FixedModifications.Count > 0) || (psm.Peptide.VariableModifications != null && psm.Peptide.VariableModifications.Count > 0))
                     {
                         output.WriteStartElement("modification_info");
-                        output.WriteAttributeString("modified_peptide", psm.Peptide.BaseSequence);
+                        output.WriteAttributeString("modified_peptide", psm.Peptide.BaseSequence.ToString());
                         for(int i = 0; i < psm.Peptide.Length; i++)
                         {
                             double mass_shift = 0.0;

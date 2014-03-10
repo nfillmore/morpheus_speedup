@@ -8,18 +8,13 @@ namespace Morpheus
     {
         private static MassType productMassType = MassType.Monoisotopic;
 
-        private string baseSequence;
+        public FastSubstring BaseSequence;
 
-        public string BaseSequence
+        public int Length
         {
             get
             {
-                return baseSequence;
-            }
-            private set
-            {
-                baseSequence = value;
-                Length = value.Length;
+                return BaseSequence.Length;
             }
         }
 
@@ -27,11 +22,9 @@ namespace Morpheus
         {
             get
             {
-                return baseSequence[index];
+                return BaseSequence[index];
             }
         }
-
-        public int Length { get; private set; }
 
         public double MonoisotopicMass
         {
@@ -39,9 +32,9 @@ namespace Morpheus
             {
                 double monoisotopic_mass = Constants.WATER_MONOISOTOPIC_MASS;
 
-                foreach(char amino_acid in baseSequence)
+                for(int i = 0; i < BaseSequence.Length; ++i)
                 {
-                    monoisotopic_mass += AminoAcidMasses.GetMonoisotopicMass(amino_acid);
+                    monoisotopic_mass += AminoAcidMasses.GetMonoisotopicMass(BaseSequence[i]);
                 }
                 if(fixedModifications != null)
                 {
@@ -71,9 +64,9 @@ namespace Morpheus
             {
                 double average_mass = Constants.WATER_AVERAGE_MASS;
 
-                foreach(char amino_acid in baseSequence)
+                for(int i = 0; i < BaseSequence.Length; ++i)
                 {
-                    average_mass += AminoAcidMasses.GetAverageMass(amino_acid);
+                    average_mass += AminoAcidMasses.GetAverageMass(BaseSequence[i]);
                 }
                 if(fixedModifications != null)
                 {
@@ -97,11 +90,13 @@ namespace Morpheus
             }
         }
 
+        // Warning: Allocates two new strings. Avoid this in inner loops. Instead use LeucineSequenceEqualityComparer.
         public string BaseLeucineSequence
         {
-            get { return baseSequence.Replace('I', 'L'); }
+            get { return BaseSequence.ToString().Replace('I', 'L'); }
         }
 
+        // Warning: Allocates a lot of stuff. Avoid this in inner loops.
         public string Sequence
         {
             get
@@ -226,12 +221,14 @@ namespace Morpheus
             }
         }
 
+        // Warning: Allocates a lot of stuff. Avoid this in inner loops. Instead, cache the sequence, and then use
+        // LeucineSequenceEqualityComparer.
         public string LeucineSequence
         {
             get { return Sequence.Replace('I', 'L'); }
         }
 
-        private static readonly Regex INVALID_AMINO_ACIDS = new Regex("[^ACDEFGHIKLMNPQRSTVWY]", RegexOptions.Compiled);
+        protected static readonly Regex INVALID_AMINO_ACIDS = new Regex("[^ACDEFGHIKLMNPQRSTVWY]", RegexOptions.Compiled);
 
         // protected AminoAcidPolymer(string baseSequence, bool prevalidated)
         // {
@@ -245,16 +242,9 @@ namespace Morpheus
         //     }
         // }
 
-        protected void BaseInit(string baseSequence, bool prevalidated)
+        protected void BaseInit(FastSubstring baseSequence)
         {
-            if(prevalidated)
-            {
-                BaseSequence = baseSequence;
-            }
-            else
-            {
-                BaseSequence = INVALID_AMINO_ACIDS.Replace(baseSequence, string.Empty);
-            }
+            BaseSequence = baseSequence;
             initializeProductArrays = true;
             fixedModifications = null;
             variableModifications = null;
