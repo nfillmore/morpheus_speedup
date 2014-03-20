@@ -411,6 +411,10 @@ namespace Morpheus
             {
                 System.Array.Resize<double>(ref cumulativeNTerminalMass, Length);
             }
+            for(int i = 0; i < Length; ++i)
+            {
+                cumulativeNTerminalMass[i] = 0.0;
+            }
 
             mass_shift = 0.0;
             // fixed modifications on protein N-terminus
@@ -488,6 +492,10 @@ namespace Morpheus
             if (cumulativeCTerminalMass == null || Length >= cumulativeCTerminalMass.Length)
             {
                 System.Array.Resize<double>(ref cumulativeCTerminalMass, Length);
+            }
+            for(int i = 0; i < Length; ++i)
+            {
+                cumulativeCTerminalMass[i] = 0.0;
             }
 
             mass_shift = 0.0;

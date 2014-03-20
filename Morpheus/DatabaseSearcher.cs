@@ -643,8 +643,9 @@ namespace Morpheus
                                                                                   maximum_precursor_monoisotopic_peak_offset_or_zero,
                                                                                   ref thread_local_storage.mass_spectra_indices);
   
-                                    for(int msidx = 0; msidx < num_mass_spectra; ++msidx)
+                                    for(int i = 0; i < num_mass_spectra; ++i)
                                     {
+                                        int msidx = thread_local_storage.mass_spectra_indices[i];
                                         // Initialize new peptide spectrum match from the spectrum at
                                         // index msidx, but do so reusing the thread-local storage instead
                                         // of allocating a new PeptideSpectrumMatch object.
