@@ -53,11 +53,16 @@ namespace Morpheus
         {
         }
 
-        // Copy all of this objects data members from the other object's data members.
+        // Copy all of this objects data members from the other object's data
+        // members. We copy other.Peptide deeply (because these sometimes come
+        // from reusable buffers) but not other.Spectrum (because these are not
+        // reused).
         public void CopyFrom(PeptideSpectrumMatch other)
         {
             Spectrum = other.Spectrum;
-            Peptide = other.Peptide;
+            if(Peptide == null)
+                Peptide = new Peptide();
+            Peptide.CopyFrom(other.Peptide);
             PrecursorMassErrorDa = other.PrecursorMassErrorDa;
             PrecursorMassErrorPpm = other.PrecursorMassErrorPpm;
             MatchingProducts = other.MatchingProducts;
@@ -75,10 +80,16 @@ namespace Morpheus
         // Note that the Init method needs to be called before this object can
         // be used. For more info, see how we use these objects in
         // DatabaseSearcher.
+        //
+        // We copy the peptide parameter deeply (because these sometimes come
+        // from reusable buffers) but not the spectrum parameter (because these
+        // are not reused).
         public void Init(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance, ref double[] buf, FastQSorter fast_q_sorter)
         {
             Spectrum = spectrum;
-            Peptide = peptide;
+            if(Peptide == null)
+                Peptide = new Peptide();
+            Peptide.CopyFrom(peptide);
 
             PrecursorMassErrorDa = spectrum.PrecursorMass - (precursorMassType == MassType.Average ? peptide.AverageMass : peptide.MonoisotopicMass);
             PrecursorMassErrorPpm = PrecursorMassErrorDa / (precursorMassType == MassType.Average ? peptide.AverageMass : peptide.MonoisotopicMass) * 1e6;
