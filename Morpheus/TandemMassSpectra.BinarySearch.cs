@@ -11,22 +11,19 @@ namespace Morpheus
         // the above appears to generate a lot of garbage, because this
         // function occurs inside an inner loop of DatabaseSearcher.DoSearch.
         //
-        // Thus, instead, we require the caller to preallocate an array of
-        // spectrum indices, "indices", and pass this to us by reference. This
-        // function fills in this array (from the beginning) with the indices
-        // of the spectra in the specified range. If the array isn't big
-        // enough, it is reallocated with double the size. The number of
-        // filled-in elements of the array, i.e., the number of spectra in the
-        // specified range, is returned. (However, to emphasize, in general,
-        // the indices array will be bigger than this.)
+        // Thus, instead, we require the caller to pass in a buffer of indices,
+        // out_indices, which we clear and re-fill with an array of spectrum
+        // indices.
         //
-        // If precursorMonoisotopicPeakCorrection is false, then pass 
+        // If precursorMonoisotopicPeakCorrection is false, then you should
+        // pass 
         //   minimumMonoisotopicPeakOffset = 0 and
         //   maximumMonoisotopicPeakOffset = 0.
-        public int GetTandemMassSpectraInMassRange(double precursorMass, MassTolerance precursorMassTolerance, 
-            int minimumMonoisotopicPeakOffset, int maximumMonoisotopicPeakOffset, ref int[] indices)
+        public void GetTandemMassSpectraInMassRange(double precursorMass, MassTolerance precursorMassTolerance, 
+                                                    int minimumMonoisotopicPeakOffset, int maximumMonoisotopicPeakOffset,
+                                                    List<int> out_indices)
         {
-            int j = 0;
+            out_indices.Clear();
             for(int i = minimumMonoisotopicPeakOffset; i <= maximumMonoisotopicPeakOffset; i++)
             {
                 double precursor_mass = precursorMass + i * Constants.C12_C13_MASS_DIFFERENCE;
@@ -43,21 +40,11 @@ namespace Morpheus
                 {
                     if(this[index].PrecursorMass <= maximum_precursor_mass)
                     {
-                        // Record index as one of the spectra in the range. If
-                        // the list of spectrum indices is now not big enough,
-                        // resize it.
-                        if (j >= indices.Length)
-                        {
-                            System.Array.Resize<int>(ref indices, j*2);
-                        }
-                        indices[j] = index;
-                        j++;
+                        out_indices.Add(index);
                     }
                     index--;
                 }
             }
-            int number_of_indices = j;
-            return number_of_indices;
         }
 
         private int BinarySearch(double precursorMass)

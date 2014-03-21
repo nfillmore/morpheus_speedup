@@ -14,11 +14,15 @@ namespace Morpheus
         public int num_decoy_peptides;
         public int proteins;
         public Dictionary<FastSubstring, bool> peptides_observed;
+
+        // Temporary storage for GetTandemMassSpectraInMassRange. Holds indices
+        // of current spectrum matches.
+        public List<int> mass_spectra_indices_buf;
+
         public PeptideSpectrumMatch psm; // a reusable PeptideSpectrumMatch object
         public PeptideSpectrumMatch[] psms; // the matches found by this thread
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
-        public int[] mass_spectra_indices; // temporary storage; see TandemMassSpectra.GetTandemMassSpectraInMassRange for more info
         public Peptide[] peptides; // temporary storage
         public Peptide[] modified_peptides; // temporary storage
         public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
@@ -35,10 +39,11 @@ namespace Morpheus
             else
                 this.peptides_observed = null;
 
+            mass_spectra_indices_buf = new List<int>(1000);
+
             psms = new PeptideSpectrumMatch[psmsLength];
             product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
             fast_q_sorter = new FastQSorter();
-            mass_spectra_indices = new int[1]; // XXX make this bigger - small for debugging
             psm = new PeptideSpectrumMatch();
             Peptide.ReallocPeptideBuf(ref peptides, 1);
             Peptide.ReallocPeptideBuf(ref modified_peptides, 1); // XXX make this bigger - small for debugging
@@ -636,16 +641,16 @@ namespace Morpheus
                                     else
                                         mass = modified_peptide.MonoisotopicMass;
 
-                                    int num_mass_spectra
-                                        = spectra.GetTandemMassSpectraInMassRange(mass,
-                                                                                  precursorMassTolerance,
-                                                                                  minimum_precursor_monoisotopic_peak_offset_or_zero,
-                                                                                  maximum_precursor_monoisotopic_peak_offset_or_zero,
-                                                                                  ref thread_local_storage.mass_spectra_indices);
+                                    // Determine the indices of the matching mass spectra. These indices are stored
+                                    // in thread_local_storage.mass_spectra_indices_buf.
+                                    spectra.GetTandemMassSpectraInMassRange(mass,
+                                                                            precursorMassTolerance,
+                                                                            minimum_precursor_monoisotopic_peak_offset_or_zero,
+                                                                            maximum_precursor_monoisotopic_peak_offset_or_zero,
+                                                                            thread_local_storage.mass_spectra_indices_buf);
   
-                                    for(int i = 0; i < num_mass_spectra; ++i)
+                                    foreach(int msidx in thread_local_storage.mass_spectra_indices_buf)
                                     {
-                                        int msidx = thread_local_storage.mass_spectra_indices[i];
                                         // Initialize new peptide spectrum match from the spectrum at
                                         // index msidx, but do so reusing the thread-local storage instead
                                         // of allocating a new PeptideSpectrumMatch object.
