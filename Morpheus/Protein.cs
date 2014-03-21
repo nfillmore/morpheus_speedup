@@ -38,10 +38,13 @@ namespace Morpheus
             IdentifiedPeptides = new Dictionary<string, List<Peptide>>();
         }
 
-        public int Digest(Protease protease, int maximumMissedCleavages, InitiatorMethionineBehavior initiatorMethionineBehavior,
-                          ref Peptide[] peptides, int? minimumPeptideLength, int? maximumPeptideLength)
+        // Fills in the argument out_peptides (after clearing it) with the
+        // digested peptides from this protein. Thus, to be clear, the argument
+        // out_peptides is modified by this method.
+        public void Digest(Protease protease, int maximumMissedCleavages, InitiatorMethionineBehavior initiatorMethionineBehavior,
+                           FastListOfBoxes<Peptide> out_peptides, int? minimumPeptideLength, int? maximumPeptideLength)
         {
-            int p = 0;
+            out_peptides.Clear();
             if(Length > 0)
             {
                 if(protease.CleavageSpecificity != CleavageSpecificity.None)
@@ -64,11 +67,7 @@ namespace Morpheus
                                     {
                                         // start residue number: +1 for starting at the next residue after the cleavage, +1 for 0->1 indexing
                                         // end residue number: +1 for 0->1 indexing
-                                        //Peptide peptide = new Peptide(this, indices[i] + 1 + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
-                                        //yield return peptide;
-                                        Peptide.ReallocPeptideBuf(ref peptides, p);
-                                        peptides[p].Init(this, indices[i] + 1 + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
-                                        ++p;
+                                        out_peptides.Add().Init(this, indices[i] + 1 + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
                                     }
                                 }
 
@@ -79,11 +78,7 @@ namespace Morpheus
                                     {
                                         // start residue number: +1 for skipping initiator methionine, +1 for starting at the next residue after the cleavage, +1 for 0->1 indexing
                                         // end residue number: +1 for 0->1 indexing
-                                        //Peptide peptide_without_initiator_methionine = new Peptide(this, indices[i] + 1 + 1 + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
-                                        //yield return peptide_without_initiator_methionine;
-                                        Peptide.ReallocPeptideBuf(ref peptides, p);
-                                        peptides[p].Init(this, indices[i] + 1 + 1 + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
-                                        ++p;
+                                        out_peptides.Add().Init(this, indices[i] + 1 + 1 + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
                                     }
                                 }
                             }
@@ -108,11 +103,7 @@ namespace Morpheus
                                                 {
                                                     // start residue number: +1 for starting at the next residue after the cleavage, +1 for 0->1 indexing
                                                     // end residue number: start residue number + length - 1
-                                                    //Peptide peptide = new Peptide(this, indices[i] + 1 + 1, (indices[i] + 1 + 1) + length - 1, missed_cleavages);
-                                                    //yield return peptide;
-                                                    Peptide.ReallocPeptideBuf(ref peptides, p);
-                                                    peptides[p].Init(this, indices[i] + 1 + 1, (indices[i] + 1 + 1) + length - 1, missed_cleavages);
-                                                    ++p;
+                                                    out_peptides.Add().Init(this, indices[i] + 1 + 1, (indices[i] + 1 + 1) + length - 1, missed_cleavages);
                                                 }
                                             }
                                         }
@@ -129,11 +120,7 @@ namespace Morpheus
                                                 {
                                                     // start residue number: +1 for skipping initiator methionine, +1 for starting at the next residue after the cleavage, +1 for 0->1 indexing
                                                     // end residue number: start residue number + length - 1
-                                                    //Peptide peptide_without_initiator_methionine = new Peptide(this, indices[i] + 1 + 1 + 1, (indices[i] + 1 + 1 + 1) + length - 1, missed_cleavages);
-                                                    //yield return peptide_without_initiator_methionine;
-                                                    Peptide.ReallocPeptideBuf(ref peptides, p);
-                                                    peptides[p].Init(this, indices[i] + 1 + 1 + 1, (indices[i] + 1 + 1 + 1) + length - 1, missed_cleavages);
-                                                    ++p;
+                                                    out_peptides.Add().Init(this, indices[i] + 1 + 1 + 1, (indices[i] + 1 + 1 + 1) + length - 1, missed_cleavages);
                                                 }
                                             }
                                         }
@@ -159,11 +146,7 @@ namespace Morpheus
                                             {
                                                 // start residue number: end residue number - length + 1
                                                 // end residue number: +1 for 0->1 indexing
-                                                //Peptide peptide = new Peptide(this, (indices[i + missed_cleavages + 1] + 1) - length + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
-                                                //yield return peptide;
-                                                Peptide.ReallocPeptideBuf(ref peptides, p);
-                                                peptides[p].Init(this, (indices[i + missed_cleavages + 1] + 1) - length + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
-                                                ++p;
+                                                out_peptides.Add().Init(this, (indices[i + missed_cleavages + 1] + 1) - length + 1, indices[i + missed_cleavages + 1] + 1, missed_cleavages);
                                             }
                                         }
                                     }
@@ -178,11 +161,7 @@ namespace Morpheus
                     {
                         if((!minimumPeptideLength.HasValue || Length >= minimumPeptideLength.Value) && (!maximumPeptideLength.HasValue || Length <= maximumPeptideLength.Value))
                         {
-                            //Peptide peptide = new Peptide(this, 1, Length, -1);
-                            //yield return peptide;
-                            Peptide.ReallocPeptideBuf(ref peptides, p);
-                            peptides[p].Init(this, 1, Length, -1);
-                            ++p;
+                            out_peptides.Add().Init(this, 1, Length, -1);
                         }
                     }
 
@@ -190,17 +169,11 @@ namespace Morpheus
                     {
                         if(Length > 1 && (!minimumPeptideLength.HasValue || Length - 1 >= minimumPeptideLength.Value) && (!maximumPeptideLength.HasValue || Length - 1 <= maximumPeptideLength.Value))
                         {
-                            //Peptide peptide_without_initiator_methionine = new Peptide(this, 2, Length, -1);
-                            //yield return peptide_without_initiator_methionine;
-                            Peptide.ReallocPeptideBuf(ref peptides, p);
-                            peptides[p].Init(this, 2, Length, -1);
-                            ++p;
+                            out_peptides.Add().Init(this, 2, Length, -1);
                         }
                     }
                 }
             }
-            int num_peptides = p;
-            return num_peptides;
         }
 
         public IEnumerable<Protein> GetVariablyModifiedProteins(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms)

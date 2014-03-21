@@ -15,6 +15,10 @@ namespace Morpheus
         public int proteins;
         public Dictionary<FastSubstring, bool> peptides_observed;
 
+        // Temporary storage for Protein.Digest. Holds the digested peptides of
+        // the current protein.
+        public FastListOfBoxes<Peptide> digested_peptides_buf;
+
         // Temporary storage for GetTandemMassSpectraInMassRange. Holds indices
         // of current spectrum matches.
         public List<int> mass_spectra_indices_buf;
@@ -23,7 +27,6 @@ namespace Morpheus
         public PeptideSpectrumMatch[] psms; // the matches found by this thread
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
-        public Peptide[] peptides; // temporary storage
         public Peptide[] modified_peptides; // temporary storage
         public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
         public Dictionary<int, List<Modification>> possible_modifications_buffer; // temporary storage
@@ -39,13 +42,13 @@ namespace Morpheus
             else
                 this.peptides_observed = null;
 
+            digested_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
             mass_spectra_indices_buf = new List<int>(1000);
 
             psms = new PeptideSpectrumMatch[psmsLength];
             product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
             fast_q_sorter = new FastQSorter();
             psm = new PeptideSpectrumMatch();
-            Peptide.ReallocPeptideBuf(ref peptides, 1);
             Peptide.ReallocPeptideBuf(ref modified_peptides, 1); // XXX make this bigger - small for debugging
             fixed_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
             possible_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
@@ -567,11 +570,11 @@ namespace Morpheus
                         // Method invoked by the loop on each iteration:
                         (protein, parallel_loop_state, thread_local_storage) =>
                         {
-                            int num_peptides = protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior,
-                                                              ref thread_local_storage.peptides, null, null);
-                            for (int p = 0; p < num_peptides; ++p)
+                            protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior,
+                                           thread_local_storage.digested_peptides_buf, null, null);
+                            for(int p = 0; p < thread_local_storage.digested_peptides_buf.Count; ++p)
                             {
-                                Peptide peptide = thread_local_storage.peptides[p];
+                                Peptide peptide = thread_local_storage.digested_peptides_buf[p];
                                 if(peptide.Target)
                                 {
                                     //Interlocked.Increment(ref num_target_peptides);

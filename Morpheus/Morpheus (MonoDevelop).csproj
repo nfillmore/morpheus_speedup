@@ -161,6 +161,7 @@
     <Compile Include="Protein.cs" />
     <Compile Include="FastQSorter.cs" />
     <Compile Include="FastSubstring.cs" />
+    <Compile Include="FastListOfBoxes.cs" />
     <Compile Include="LeucineSequenceEqualityComparer.cs" />
   </ItemGroup>
   <ItemGroup>

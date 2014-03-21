@@ -185,11 +185,9 @@ namespace Morpheus
             parallel_options.MaxDegreeOfParallelism = maximumThreads;
             Parallel.ForEach(ProteinFastaReader.ReadProteins(proteinFastaDatabase, onTheFlyDecoys), parallel_options, protein =>
                 {
-                    //foreach(Peptide peptide in protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior, null, null))
-                    Peptide[] digested_peptides = new Peptide[0];
-                    Peptide.ReallocPeptideBuf(ref digested_peptides, 100);
-                    int num_digested_peptides = protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior, ref digested_peptides, null, null);
-                    for (int p = 0; p < num_digested_peptides; ++p)
+                    FastListOfBoxes<Peptide> digested_peptides = new FastListOfBoxes<Peptide>(100);
+                    protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior, digested_peptides, null, null);
+                    for (int p = 0; p < digested_peptides.Count; ++p)
                     {
                         Peptide peptide = digested_peptides[p];
                         lock(peptide_proteins)
