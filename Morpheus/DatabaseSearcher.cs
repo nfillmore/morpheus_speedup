@@ -19,6 +19,10 @@ namespace Morpheus
         // the current protein.
         public FastListOfBoxes<Peptide> digested_peptides_buf;
 
+        // Temporary storage for Peptide.GetVariablyModifiedPeptides. Hods the
+        // variably modified peptides generated based on the current peptide.
+        public FastListOfBoxes<Peptide> modified_peptides_buf;
+
         // Temporary storage for GetTandemMassSpectraInMassRange. Holds indices
         // of current spectrum matches.
         public List<int> mass_spectra_indices_buf;
@@ -27,7 +31,6 @@ namespace Morpheus
         public PeptideSpectrumMatch[] psms; // the matches found by this thread
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
-        public Peptide[] modified_peptides; // temporary storage
         public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
         public Dictionary<int, List<Modification>> possible_modifications_buffer; // temporary storage
 
@@ -43,13 +46,13 @@ namespace Morpheus
                 this.peptides_observed = null;
 
             digested_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
+            modified_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
             mass_spectra_indices_buf = new List<int>(1000);
 
             psms = new PeptideSpectrumMatch[psmsLength];
             product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
             fast_q_sorter = new FastQSorter();
             psm = new PeptideSpectrumMatch();
-            Peptide.ReallocPeptideBuf(ref modified_peptides, 1); // XXX make this bigger - small for debugging
             fixed_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
             possible_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
         }
@@ -570,6 +573,8 @@ namespace Morpheus
                         // Method invoked by the loop on each iteration:
                         (protein, parallel_loop_state, thread_local_storage) =>
                         {
+                            // Digest the current protein into peptides. These peptides are stored in
+                            // thread_local_storage.digested_peptides_buf, which is then looped over below.
                             protein.Digest(protease, maximumMissedCleavages, initiatorMethionineBehavior,
                                            thread_local_storage.digested_peptides_buf, null, null);
                             for(int p = 0; p < thread_local_storage.digested_peptides_buf.Count; ++p)
@@ -617,14 +622,15 @@ namespace Morpheus
                                     //}
                                 }
 
+                                // Determine modifications of the current peptide. These are stored in
+                                // thread_local_storage.modified_peptides_buf, which is then looped over below.
                                 peptide.SetFixedModifications(fixedModifications, thread_local_storage.fixed_modifications_buffer);
-                                //foreach(Peptide modified_peptide in peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms))
-                                int num_modified_peptides = peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms,
-                                                                                                ref thread_local_storage.modified_peptides,
-                                                                                                thread_local_storage.possible_modifications_buffer);
-                                for (int mp = 0; mp < num_modified_peptides; ++mp)
+                                peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms,
+                                                                    thread_local_storage.modified_peptides_buf,
+                                                                    thread_local_storage.possible_modifications_buffer);
+                                for(int mp = 0; mp < thread_local_storage.modified_peptides_buf.Count; ++mp)
                                 {
-                                    Peptide modified_peptide = thread_local_storage.modified_peptides[mp];
+                                    Peptide modified_peptide = thread_local_storage.modified_peptides_buf[mp];
                                     int minimum_precursor_monoisotopic_peak_offset_or_zero;
                                     int maximum_precursor_monoisotopic_peak_offset_or_zero;
                                     if(precursorMonoisotopicPeakCorrection)
@@ -645,13 +651,12 @@ namespace Morpheus
                                         mass = modified_peptide.MonoisotopicMass;
 
                                     // Determine the indices of the matching mass spectra. These indices are stored
-                                    // in thread_local_storage.mass_spectra_indices_buf.
+                                    // in thread_local_storage.mass_spectra_indices_buf, which is then looped over below.
                                     spectra.GetTandemMassSpectraInMassRange(mass,
                                                                             precursorMassTolerance,
                                                                             minimum_precursor_monoisotopic_peak_offset_or_zero,
                                                                             maximum_precursor_monoisotopic_peak_offset_or_zero,
                                                                             thread_local_storage.mass_spectra_indices_buf);
-  
                                     foreach(int msidx in thread_local_storage.mass_spectra_indices_buf)
                                     {
                                         // Initialize new peptide spectrum match from the spectrum at

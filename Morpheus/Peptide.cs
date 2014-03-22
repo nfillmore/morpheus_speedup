@@ -101,14 +101,22 @@ namespace Morpheus
             Init(peptide.Parent, peptide.StartResidueNumber, peptide.EndResidueNumber, peptide.MissedCleavages);
         }
 
-        // We pass in a possible_modifications buffer instead of allocating one
-        // below because profiling showed that the allocation of new
-        // dictionaries in this method is a major source of garbage.
-        public int GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms, ref Peptide[] peptides, Dictionary<int, List<Modification>> possible_modifications)
+        // Fills in the argument out_peptides (after clearing it) with the
+        // variably modified peptides. Thus, to be clear, the argument
+        // out_peptides is modified by this method.
+        // 
+        // The variable out_possible_modifications is used as for temporary,
+        // intermediate storage. We pass in this dictionary instead of
+        // allocating a new one inside the method because profiling showed that
+        // the allocation of new dictionaries in this method was a major source
+        // of garbage. To be clear, this dictionary is changed, but its
+        // contents are not useful outside of this method.
+        public void GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms,
+                                                FastListOfBoxes<Peptide> out_peptides,
+                                                Dictionary<int, List<Modification>> out_possible_modifications)
         {
-            int p = 0;
-            //Dictionary<int, List<Modification>> possible_modifications = new Dictionary<int, List<Modification>>(Length + 4);
-            possible_modifications.Clear();
+            out_peptides.Clear();
+            out_possible_modifications.Clear();
 
             foreach(Modification variable_modification in variableModifications)
             {
@@ -116,11 +124,11 @@ namespace Morpheus
                     && (variable_modification.AminoAcid == char.MinValue || this[0] == variable_modification.AminoAcid))
                 {
                     List<Modification> prot_n_term_variable_mods;
-                    if(!possible_modifications.TryGetValue(0, out prot_n_term_variable_mods))
+                    if(!out_possible_modifications.TryGetValue(0, out prot_n_term_variable_mods))
                     {
                         prot_n_term_variable_mods = new List<Modification>();
                         prot_n_term_variable_mods.Add(variable_modification);
-                        possible_modifications.Add(0, prot_n_term_variable_mods);
+                        out_possible_modifications.Add(0, prot_n_term_variable_mods);
                     }
                     else
                     {
@@ -131,11 +139,11 @@ namespace Morpheus
                 if(variable_modification.Type == ModificationType.PeptideNTerminus && (variable_modification.AminoAcid == char.MinValue || this[0] == variable_modification.AminoAcid))
                 {
                     List<Modification> pep_n_term_variable_mods;
-                    if(!possible_modifications.TryGetValue(1, out pep_n_term_variable_mods))
+                    if(!out_possible_modifications.TryGetValue(1, out pep_n_term_variable_mods))
                     {
                         pep_n_term_variable_mods = new List<Modification>();
                         pep_n_term_variable_mods.Add(variable_modification);
-                        possible_modifications.Add(1, pep_n_term_variable_mods);
+                        out_possible_modifications.Add(1, pep_n_term_variable_mods);
                     }
                     else
                     {
@@ -148,11 +156,11 @@ namespace Morpheus
                     if(variable_modification.Type == ModificationType.AminoAcidResidue && this[r] == variable_modification.AminoAcid)
                     {
                         List<Modification> residue_variable_mods;
-                        if(!possible_modifications.TryGetValue(r + 2, out residue_variable_mods))
+                        if(!out_possible_modifications.TryGetValue(r + 2, out residue_variable_mods))
                         {
                             residue_variable_mods = new List<Modification>();
                             residue_variable_mods.Add(variable_modification);
-                            possible_modifications.Add(r + 2, residue_variable_mods);
+                            out_possible_modifications.Add(r + 2, residue_variable_mods);
                         }
                         else
                         {
@@ -164,11 +172,11 @@ namespace Morpheus
                 if(variable_modification.Type == ModificationType.PeptideCTerminus && (variable_modification.AminoAcid == char.MinValue || this[Length - 1] == variable_modification.AminoAcid))
                 {
                     List<Modification> pep_c_term_variable_mods;
-                    if(!possible_modifications.TryGetValue(Length + 2, out pep_c_term_variable_mods))
+                    if(!out_possible_modifications.TryGetValue(Length + 2, out pep_c_term_variable_mods))
                     {
                         pep_c_term_variable_mods = new List<Modification>();
                         pep_c_term_variable_mods.Add(variable_modification);
-                        possible_modifications.Add(Length + 2, pep_c_term_variable_mods);
+                        out_possible_modifications.Add(Length + 2, pep_c_term_variable_mods);
                     }
                     else
                     {
@@ -180,11 +188,11 @@ namespace Morpheus
                     && (variable_modification.AminoAcid == char.MinValue || this[Length - 1] == variable_modification.AminoAcid))
                 {
                     List<Modification> prot_c_term_variable_mods;
-                    if(!possible_modifications.TryGetValue(Length + 3, out prot_c_term_variable_mods))
+                    if(!out_possible_modifications.TryGetValue(Length + 3, out prot_c_term_variable_mods))
                     {
                         prot_c_term_variable_mods = new List<Modification>();
                         prot_c_term_variable_mods.Add(variable_modification);
-                        possible_modifications.Add(Length + 3, prot_c_term_variable_mods);
+                        out_possible_modifications.Add(Length + 3, prot_c_term_variable_mods);
                     }
                     else
                     {
@@ -194,38 +202,16 @@ namespace Morpheus
             }
 
             int variable_modification_isoforms = 0;
-            foreach(Dictionary<int, Modification> kvp in GetVariableModificationPatterns(possible_modifications))
+            foreach(Dictionary<int, Modification> kvp in GetVariableModificationPatterns(out_possible_modifications))
             {
-                // Peptide peptide = new Peptide(this);
-                // peptide.FixedModifications = FixedModifications;
-                // peptide.VariableModifications = kvp;
-                // yield return peptide;
-                ReallocPeptideBuf(ref peptides, p);
-                peptides[p].CopyFrom(this);
-                peptides[p].FixedModifications = FixedModifications;
-                peptides[p].VariableModifications = kvp;
-                ++p;
+                Peptide added_peptide = out_peptides.Add();
+                added_peptide.CopyFrom(this);
+                added_peptide.FixedModifications = FixedModifications;
+                added_peptide.VariableModifications = kvp;
                 variable_modification_isoforms++;
                 if(variable_modification_isoforms == maximumVariableModificationIsoforms)
                 {
-                    //yield break;
                     break;
-                }
-            }
-            int num_peptides = p;
-            return p;
-        }
-
-        public static void ReallocPeptideBuf(ref Peptide[] peptides, int p)
-        {
-            int old_length = (peptides == null) ? 0 : peptides.Length;
-            if (p >= old_length)
-            {
-                int new_length = 2*p;
-				System.Array.Resize<Peptide>(ref peptides, new_length);
-                for(int q = old_length; q < new_length; ++q)
-                {
-                    peptides[q] = new Peptide();
                 }
             }
         }
