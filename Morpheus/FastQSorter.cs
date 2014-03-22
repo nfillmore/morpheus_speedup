@@ -1,15 +1,67 @@
 using System;
+using System.Collections.Generic;
+
+// This file contains slightly modified versions of a subset of Mono's
+// system.Array implementation related to sorting arrays.
+//
+// The differences include that (1) the FastQSortStack array is allocated ahead
+// of time instead of once every time Sort is called, and (2) a faster
+// comparison function for doubles is included (which doesn't check for
+// Infinity, NaN, etc.), and this comparison function is used by default.
+//
+// Difference (1) is useful when Sort is called (i) many times on (ii) small
+// arrays in (iii) multithreaded code. Under such circumstances, the heap
+// allocation of a separate QSortStack array for each call of Sort appears to
+// lead to a lot of garbage that then needs to be collected.
+//
+// Difference (2) was shown to be useful for us by informal profiling in a
+// debugger. When I stopped, numbers were often being checked against Infinity,
+// etc., even though it isn't really useful, for our purposes, to deal with
+// these corner cases explicitly, since if the product_masses are infinite or
+// nan, we have bigger problems than sorting them perfectly.
+//
+// Note that a different FastQSorter object needs to be used in each thread.
+//
+// The original code's license is included below.
+//
+// System.Array.cs
+//
+// Authors:
+//   Joe Shaw (joe@ximian.com)
+//   Martin Baulig (martin@gnome.org)
+//   Dietmar Maurer (dietmar@ximian.com)
+//   Gonzalo Paniagua Javier (gonzalo@ximian.com)
+//   Jeffrey Stedfast (fejj@novell.com)
+//   Marek Safar (marek.safar@gmail.com)
+//
+// (C) 2001-2003 Ximian, Inc.  http://www.ximian.com
+// Copyright (C) 2004-2011 Novell, Inc (http://www.novell.com)
+// Copyright (C) 2011 Xamarin Inc (http://www.xamarin.com)
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+// 
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 namespace Morpheus
 {
-    // These classes are copied almost wholesale from Mono's system.Array
-    // implementation. The only difference is that the the FastQSortStack array
-    // is allocated ahead of time instead of once every time Sort is called.
-    //
-    // This is useful when Sort is called (i) many times on (ii) small arrays
-    // in (iii) multithreaded code. Under such circumstances, the heap
-    // allocation of a separate QSortStack array for each call of Sort leads to
-    // a lot of locking in the allocator.
+    // This class provides an alternative Sort implementation, copied with
+    // minor modifications from Mono's system.Array implementaion. See above
+    // for details.
     //
     // Note that a different FastQSorter object needs to be used in each
     // thread.
