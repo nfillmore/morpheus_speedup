@@ -27,8 +27,13 @@ namespace Morpheus
         // of current spectrum matches.
         public List<int> mass_spectra_indices_buf;
 
-        public PeptideSpectrumMatch psm; // a reusable PeptideSpectrumMatch object
-        public PeptideSpectrumMatch[] psms; // the matches found by this thread
+        // The match currently under consideration.
+        public PeptideSpectrumMatch psm;
+
+        // Holds the best match for each spectrum found so far by this thread.
+        // The matches are indexed by the spectrum's number.
+        public PeptideSpectrumMatch[] psms;
+
         public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
@@ -48,11 +53,11 @@ namespace Morpheus
             digested_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
             modified_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
             mass_spectra_indices_buf = new List<int>(1000);
-
+            psm = new PeptideSpectrumMatch();
             psms = new PeptideSpectrumMatch[psmsLength];
+
             product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
             fast_q_sorter = new FastQSorter();
-            psm = new PeptideSpectrumMatch();
             fixed_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
             possible_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
         }
