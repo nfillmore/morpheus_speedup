@@ -90,7 +90,7 @@ public struct FastSubstring
     // This converts the fast substring to an explicit newly allocated string
     // object. Avoid calling this in places where it is important to avoid
     // garbage generation.
-    public string ToString()
+    public override string ToString()
     {
         return sequence.Substring(start, length);
     }
