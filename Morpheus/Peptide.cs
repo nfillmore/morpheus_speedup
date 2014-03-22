@@ -101,16 +101,23 @@ namespace Morpheus
             Init(peptide.Parent, peptide.StartResidueNumber, peptide.EndResidueNumber, peptide.MissedCleavages);
         }
 
-        // Fills in the argument out_peptides (after clearing it) with the
-        // variably modified peptides. Thus, to be clear, the argument
-        // out_peptides is modified by this method.
-        // 
-        // The variable out_possible_modifications is used as for temporary,
+        // This method figures out the variable modifications of the current
+        // peptide and stores them in the argument out_peptides. (The
+        // out_peptides list is cleared before the new variably modified
+        // peptides are added to it.)
+        //
+        // The variable out_possible_modifications is used for temporary,
         // intermediate storage. We pass in this dictionary instead of
         // allocating a new one inside the method because profiling showed that
-        // the allocation of new dictionaries in this method was a major source
-        // of garbage. To be clear, this dictionary is changed, but its
-        // contents are not useful outside of this method.
+        // a large number of dictionaries were allocated by this method.
+        // (However, since each dictionary entry is itself a list of
+        // modifications, and these are still newly allocated by this method,
+        // it isn't clear how much is really saved, in practice, by reusing
+        // only the dictionary. Further optimization might be beneficial here.)
+        // This dictionary is not useful outside this method, only internally.
+        //
+        // To be clear: The arguments out_peptides and
+        // out_possible_modifications are modified by this method.
         public void GetVariablyModifiedPeptides(IEnumerable<Modification> variableModifications, int maximumVariableModificationIsoforms,
                                                 FastListOfBoxes<Peptide> out_peptides,
                                                 Dictionary<int, List<Modification>> out_possible_modifications)

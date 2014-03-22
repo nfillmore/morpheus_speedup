@@ -292,18 +292,25 @@ namespace Morpheus
         // This method sets the fixed modifications for this polymer, based on
         // the fixedModifications passed as the first argument.
         //
-        // The second argument, fixedModificationsBuffer, should be
-        // thread-local storage. We will store the the fixed modifications for
-        // this peptide in this buffer. The point of passing in this buffer is
-        // to avoid an allocation of a new dictionary within this method, which
-        // profiling shows to be a major source of garbage. Note that since
-        // this.fixedModifications (= fixedModificationsBuffer) is used in
-        // other methods in this class, you won't want to reuse the
-        // fixedModificationsBuffer elsewhere until you are completely done
-        // processing this AminoAcidPolymer object.
+        // The second argument, fixedModificationsBuffer, will be cleared and
+        // refilled by this method, and hence should be thread-local storage.
+        // The point of doing this is to avoid allocation of a new dictionary
+        // each time this method is called, since profiling showed that a large
+        // number of dictionaries were allocated by this method. (However,
+        // since each dictionary entry is itself a list of modifications, and
+        // these are still newly allocated by this method, it isn't clear how
+        // much is really saved, in practice, by reusing only the dictionary.
+        // Further optimization might be beneficial here.)
+        //
+        // Note that the fixedModificationsBuffer (saved as
+        // this.fixedModifications) is used in other methods in this class, so
+        // you won't want to reuse the fixedModificationsBuffer elsewhere until
+        // you are completely done processing this AminoAcidPolymer object.
+        //
+        // The fixedModificationsBuffer is not useful outside of this class
+        // (e.g., by the caller of this method).
         public void SetFixedModifications(IEnumerable<Modification> fixedModifications, Dictionary<int, List<Modification>> fixedModificationsBuffer)
         {
-            //this.fixedModifications = new Dictionary<int, List<Modification>>(Length + 4);
             this.fixedModifications = fixedModificationsBuffer;
             this.fixedModifications.Clear();
 

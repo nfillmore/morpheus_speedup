@@ -23,6 +23,12 @@ namespace Morpheus
         // variably modified peptides generated based on the current peptide.
         public FastListOfBoxes<Peptide> modified_peptides_buf;
 
+        // Temporary storage for the fixed and possibile modifications of the
+        // current peptide. Used internally by SetFixedModifications and
+        // GetVariablyModifiedPeptides.
+        public Dictionary<int, List<Modification>> fixed_modifications_buf;
+        public Dictionary<int, List<Modification>> possible_modifications_buf;
+
         // Temporary storage for GetTandemMassSpectraInMassRange. Holds indices
         // of current spectrum matches.
         public List<int> mass_spectra_indices_buf;
@@ -42,9 +48,6 @@ namespace Morpheus
         // The matches are indexed by the spectrum's number.
         public PeptideSpectrumMatch[] psms;
 
-        public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
-        public Dictionary<int, List<Modification>> possible_modifications_buffer; // temporary storage
-
         public DatabaseSearcherThreadLocalStorage(bool minimizeMemoryUsage, int psmsLength)
         {
             this.num_target_peptides = 0;
@@ -58,14 +61,13 @@ namespace Morpheus
 
             digested_peptides_buf = new FastListOfBoxes<Peptide>(1000);
             modified_peptides_buf = new FastListOfBoxes<Peptide>(1000);
+            fixed_modifications_buf = new Dictionary<int, List<Modification>>(1000);
+            possible_modifications_buf = new Dictionary<int, List<Modification>>(1000);
             mass_spectra_indices_buf = new List<int>(1000);
             product_masses_buf = new double[1000];
             fast_q_sorter = new FastQSorter();
             psm = new PeptideSpectrumMatch();
             psms = new PeptideSpectrumMatch[psmsLength];
-
-            fixed_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
-            possible_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
         }
     }
 
@@ -635,10 +637,10 @@ namespace Morpheus
 
                                 // Determine modifications of the current peptide. These are stored in
                                 // thread_local_storage.modified_peptides_buf, which is then looped over below.
-                                peptide.SetFixedModifications(fixedModifications, thread_local_storage.fixed_modifications_buffer);
+                                peptide.SetFixedModifications(fixedModifications, thread_local_storage.fixed_modifications_buf);
                                 peptide.GetVariablyModifiedPeptides(variableModifications, maximumVariableModificationIsoforms,
                                                                     thread_local_storage.modified_peptides_buf,
-                                                                    thread_local_storage.possible_modifications_buffer);
+                                                                    thread_local_storage.possible_modifications_buf);
                                 for(int mp = 0; mp < thread_local_storage.modified_peptides_buf.Count; ++mp)
                                 {
                                     Peptide modified_peptide = thread_local_storage.modified_peptides_buf[mp];
