@@ -8,69 +8,6 @@ using System.Threading.Tasks;
 
 namespace Morpheus
 {
-    public class DatabaseSearcherThreadLocalStorage
-    {
-        public int num_target_peptides;
-        public int num_decoy_peptides;
-        public int proteins;
-        public Dictionary<FastSubstring, bool> peptides_observed;
-
-        // Temporary storage for Protein.Digest. Holds the digested peptides of
-        // the current protein.
-        public FastListOfBoxes<Peptide> digested_peptides_buf;
-
-        // Temporary storage for Peptide.GetVariablyModifiedPeptides. Holds the
-        // variably modified peptides generated based on the current peptide.
-        public FastListOfBoxes<Peptide> modified_peptides_buf;
-
-        // Temporary storage for the fixed and possibile modifications of the
-        // current peptide. Used internally by SetFixedModifications and
-        // GetVariablyModifiedPeptides.
-        public Dictionary<int, List<Modification>> fixed_modifications_buf;
-        public Dictionary<int, List<Modification>> possible_modifications_buf;
-
-        // Temporary storage for GetTandemMassSpectraInMassRange. Holds indices
-        // of current spectrum matches.
-        public List<int> mass_spectra_indices_buf;
-
-        // Temporary storage for Peptide.Init. Used internally by that method,
-        // or rather, by further methods it calls.
-        public double[] product_masses_buf;
-
-        // Object with internal state used by Peptide.Init, or rather, by
-        // further methods it calls.
-        public FastQSorter fast_q_sorter;
-
-        // The match currently under consideration.
-        public PeptideSpectrumMatch psm;
-
-        // Holds the best match for each spectrum found so far by this thread.
-        // The matches are indexed by the spectrum's number.
-        public PeptideSpectrumMatch[] psms;
-
-        public DatabaseSearcherThreadLocalStorage(bool minimizeMemoryUsage, int psmsLength)
-        {
-            this.num_target_peptides = 0;
-            this.num_decoy_peptides = 0;
-            this.proteins = 0;
-
-            if (!minimizeMemoryUsage)
-                this.peptides_observed = new Dictionary<FastSubstring, bool>(new LeucineSequenceEqualityComparer());
-            else
-                this.peptides_observed = null;
-
-            digested_peptides_buf = new FastListOfBoxes<Peptide>(1000);
-            modified_peptides_buf = new FastListOfBoxes<Peptide>(1000);
-            fixed_modifications_buf = new Dictionary<int, List<Modification>>(1000);
-            possible_modifications_buf = new Dictionary<int, List<Modification>>(1000);
-            mass_spectra_indices_buf = new List<int>(1000);
-            product_masses_buf = new double[1000];
-            fast_q_sorter = new FastQSorter();
-            psm = new PeptideSpectrumMatch();
-            psms = new PeptideSpectrumMatch[psmsLength];
-        }
-    }
-
     public class DatabaseSearcher
     {
         private IList<string> dataFilepaths;
@@ -566,24 +503,18 @@ namespace Morpheus
                         }
                     }
 #else
-					// OnUpdateStatus(new StatusEventArgs("Reading proteins..."));
-					// List<Protein> protein_list = new List<Protein>(ProteinFastaReader.ReadProteins(protein_fasta_database, onTheFlyDecoys));
-					// OnUpdateStatus(new StatusEventArgs("...done."));
-
                     object progress_lock = new object();
                     int proteins = 0;
                     int old_progress = 0;
                     ParallelOptions parallel_options = new ParallelOptions();
                     parallel_options.MaxDegreeOfParallelism = maximumThreads;
                     Parallel.ForEach<Protein, DatabaseSearcherThreadLocalStorage>(
-                        // Source collection:
                         ProteinFastaReader.ReadProteins(protein_fasta_database, onTheFlyDecoys),
-						//protein_list,
-                        // Parallel options:
                         parallel_options, 
-                        // Method to initialize the thread-local variable:
+                        // The following function initializes thread-local storage for this thread.
                         () => new DatabaseSearcherThreadLocalStorage(minimizeMemoryUsage, psms.Length),
-                        // Method invoked by the loop on each iteration:
+                        // The following function is run at each iteration of the loop. It looks through the current proteins
+                        // peptides to see if any of them is the best match (so far) for some spectrum. If so, the match is recorded.
                         (protein, parallel_loop_state, thread_local_storage) =>
                         {
                             // Digest the current protein into peptides. These peptides are stored in
@@ -595,12 +526,10 @@ namespace Morpheus
                                 Peptide peptide = thread_local_storage.digested_peptides_buf[p];
                                 if(peptide.Target)
                                 {
-                                    //Interlocked.Increment(ref num_target_peptides);
                                     thread_local_storage.num_target_peptides++;
                                 }
                                 else
                                 {
-                                    //Interlocked.Increment(ref num_decoy_peptides);
                                     thread_local_storage.num_decoy_peptides++;
                                 }
 
@@ -616,23 +545,20 @@ namespace Morpheus
                                     // Note that although we are looking up the BaseSequence, the peptides_observed dictionary uses the 
                                     // LeucineSequenceEqualityComparer to hash and check for equality. This, this is equivalent to storing
                                     // BaseLeucineSequence in the dictionary, as was originally done here.
-                                    //lock(peptides_observed)
-                                    //{
-                                        bool observed_as_decoy = false;
-                                        if(!thread_local_storage.peptides_observed.TryGetValue(peptide.BaseSequence, out observed_as_decoy))
+                                    bool observed_as_decoy = false;
+                                    if(!thread_local_storage.peptides_observed.TryGetValue(peptide.BaseSequence, out observed_as_decoy))
+                                    {
+                                        thread_local_storage.peptides_observed.Add(peptide.BaseSequence, peptide.Decoy);
+                                    }
+                                    else
+                                    {
+                                        if(observed_as_decoy || peptide.Target)
                                         {
-                                            thread_local_storage.peptides_observed.Add(peptide.BaseSequence, peptide.Decoy);
+                                            continue;
                                         }
-                                        else
-                                        {
-                                            if(observed_as_decoy || peptide.Target)
-                                            {
-                                                continue;
-                                            }
 
-                                            thread_local_storage.peptides_observed[peptide.BaseSequence] = true;
-                                        }
-                                    //}
+                                        thread_local_storage.peptides_observed[peptide.BaseSequence] = true;
+                                    }
                                 }
 
                                 // Determine modifications of the current peptide. These are stored in
@@ -702,7 +628,7 @@ namespace Morpheus
 
                             // Update the progress. We only do this once every total_proteins/1000 iterations (or every
                             // iteration is there are fewer than 1000 proteins), in order to avoid excessive lock
-                            // contention. Note that this code block is repeated below (probably should be factored out
+                            // contention. Note that this code block is repeated below (perhaps should be factored out
                             // into a separate function, but I don't know C# well enough), in case there are unaccounted 
                             // for proteins when this thread is done.
                             thread_local_storage.proteins++;
@@ -722,15 +648,11 @@ namespace Morpheus
                                 }
                             }
                             
-                            return thread_local_storage; // XXX this is just copying a pointer, right?
+                            return thread_local_storage;
                         },
-                        // Method to be executed when all loops have completed:
+                        // The following function is run when all loops have completed. It updates the relevant non-thread
+                        // storage with the new thread-local stuff computed in this thread.
                         thread_local_storage => {
-                            // Update the relevant non-thread storage with the new stuff computed in this thread.
-                            //
-                            // We don't need to do anything with thread_local_storage.peptides_observed or
-                            // thread_local_storage.product_masses_buf, because they aren't used outside this foreach loop.
-                            //
                             // We update target and decoy counts inside the same lock(psms) used for the best peptide
                             // spectrum matches, because (i) C# doesn't allow us to lock integers, (ii) there is no 
                             // competing access to these integers outside the present method, (iii) and the time required 
