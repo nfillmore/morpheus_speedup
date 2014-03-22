@@ -73,18 +73,22 @@ namespace Morpheus
             MorpheusScore = other.MorpheusScore;
         }
 
-        // The array buf is used for temporary storage. It needs to be local to
-        // the current thread; no locking is performed. For more info, see
-        // AminoAcidPolymer.CalculateProductMasses's comments.
-        //
-        // Note that the Init method needs to be called before this object can
-        // be used. For more info, see how we use these objects in
-        // DatabaseSearcher.
+        // This Init method needs to be called before this object can be used.
+        // For more info, see how we use these objects in DatabaseSearcher.
         //
         // We copy the peptide parameter deeply (because these sometimes come
         // from reusable buffers) but not the spectrum parameter (because these
         // are not reused).
-        public void Init(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance, ref double[] buf, FastQSorter fast_q_sorter)
+        // 
+        // The array product_masses_buf is used for temporary internal storage
+        // and may be resized. It needs to be local to the current thread; no
+        // locking is performed. Its contents are not of interest to the
+        // caller.
+        // 
+        // The fast_q_sorter object also need to be local to the current
+        // thread, as its internal state will be modified.
+        public void Init(TandemMassSpectrum spectrum, Peptide peptide, MassTolerance productMassTolerance,
+                         ref double[] product_masses_buf, FastQSorter fast_q_sorter)
         {
             Spectrum = spectrum;
             if(Peptide == null)
@@ -94,18 +98,22 @@ namespace Morpheus
             PrecursorMassErrorDa = spectrum.PrecursorMass - (precursorMassType == MassType.Average ? peptide.AverageMass : peptide.MonoisotopicMass);
             PrecursorMassErrorPpm = PrecursorMassErrorDa / (precursorMassType == MassType.Average ? peptide.AverageMass : peptide.MonoisotopicMass) * 1e6;
 
-            ScoreMatch(productMassTolerance, ref buf, fast_q_sorter);
+            ScoreMatch(productMassTolerance, ref product_masses_buf, fast_q_sorter);
         }
 
-        private void ScoreMatch(MassTolerance productMassTolerance, ref double[] theoretical_product_masses, FastQSorter fast_q_sorter)
+        // Calculates the score for this match. Both product_masses_buf and
+        // fast_q_sorter are modified by this method; see Init's documentation
+        // for details.
+        private void ScoreMatch(MassTolerance productMassTolerance, ref double[] product_masses_buf, FastQSorter fast_q_sorter)
         {
-            //double[] theoretical_product_masses = Peptide.CalculateProductMasses(PRODUCT_TYPES[Spectrum.FragmentationMethod]).ToArray();
-            //TotalProducts = theoretical_product_masses.Length;
-            ProductType[] product_types = PRODUCT_TYPES[Spectrum.FragmentationMethod];
-            TotalProducts = Peptide.CalculateProductMasses(product_types, ref theoretical_product_masses, fast_q_sorter);
+            // Calculate the theoretical product masses and store them in
+            // product_masses_buf, which is aliased under the more informative
+            // name theoretical_product_masses for the code below.
+            TotalProducts = Peptide.CalculateProductMasses(PRODUCT_TYPES[Spectrum.FragmentationMethod],
+                                                           ref product_masses_buf, fast_q_sorter);
+            double[] theoretical_product_masses = product_masses_buf;
 
             // speed optimizations
-            //int num_theoretical_products = theoretical_product_masses.Length;
             int num_theoretical_products = TotalProducts;
             double[] experimental_masses = Spectrum.Masses;
             double[] experimental_intensities = Spectrum.Intensities;

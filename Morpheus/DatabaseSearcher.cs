@@ -19,13 +19,21 @@ namespace Morpheus
         // the current protein.
         public FastListOfBoxes<Peptide> digested_peptides_buf;
 
-        // Temporary storage for Peptide.GetVariablyModifiedPeptides. Hods the
+        // Temporary storage for Peptide.GetVariablyModifiedPeptides. Holds the
         // variably modified peptides generated based on the current peptide.
         public FastListOfBoxes<Peptide> modified_peptides_buf;
 
         // Temporary storage for GetTandemMassSpectraInMassRange. Holds indices
         // of current spectrum matches.
         public List<int> mass_spectra_indices_buf;
+
+        // Temporary storage for Peptide.Init. Used internally by that method,
+        // or rather, by further methods it calls.
+        public double[] product_masses_buf;
+
+        // Object with internal state used by Peptide.Init, or rather, by
+        // further methods it calls.
+        public FastQSorter fast_q_sorter;
 
         // The match currently under consideration.
         public PeptideSpectrumMatch psm;
@@ -34,8 +42,6 @@ namespace Morpheus
         // The matches are indexed by the spectrum's number.
         public PeptideSpectrumMatch[] psms;
 
-        public double[] product_masses_buf; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
-        public FastQSorter fast_q_sorter; // temporary storage; see AminoAcidPolymer.CalculateProductMasses for more info
         public Dictionary<int, List<Modification>> fixed_modifications_buffer; // temporary storage
         public Dictionary<int, List<Modification>> possible_modifications_buffer; // temporary storage
 
@@ -50,14 +56,14 @@ namespace Morpheus
             else
                 this.peptides_observed = null;
 
-            digested_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
-            modified_peptides_buf = new FastListOfBoxes<Peptide>(0); // XXX make bigger
+            digested_peptides_buf = new FastListOfBoxes<Peptide>(1000);
+            modified_peptides_buf = new FastListOfBoxes<Peptide>(1000);
             mass_spectra_indices_buf = new List<int>(1000);
+            product_masses_buf = new double[1000];
+            fast_q_sorter = new FastQSorter();
             psm = new PeptideSpectrumMatch();
             psms = new PeptideSpectrumMatch[psmsLength];
 
-            product_masses_buf = new double[1]; // XXX make this bigger - small for debuggin
-            fast_q_sorter = new FastQSorter();
             fixed_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
             possible_modifications_buffer = new Dictionary<int, List<Modification>>(1000);
         }

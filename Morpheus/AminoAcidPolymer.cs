@@ -597,58 +597,64 @@ namespace Morpheus
         }
 
         // This method is called, via PeptideSpectrumMatch.ScoreMatch, in a
-        // tight loop in DatabaseSearcher.DoSearch. In the original version of
-        // this method, a List<Double> was created as product_masses and
-        // returned it. Then, PeptideSpectrumMatch.ScoreMatch converted this
-        // List<Double> to an array of doubles. Profiling showed that these
-        // allocations created a bottleneck in the memory allocator, especially
-        // on machines with a lot of cores (since allocation seems to involve
-        // locks, even using the SGEN allocator, at least on Linux).
+        // tight loop in DatabaseSearcher.DoSearch. Originally, (i) a
+        // List<Double> containing the product masses was newly allocated and
+        // returned each time this method was called, and then (ii)
+        // PeptideSpectrumMatch.ScoreMatch converted this List<Double> to an
+        // array of doubles. Thus, a lot of garbage was generated and needed to
+        // be collected.
         //
-        // Thus, in the current version of this function, we take the
-        // product_masses array by reference. If this array isn't big enough to
-        // store the calculated product masses, we resize it. We then fill in
-        // the beginning of this array with the calculated product masses.
-        // Finally, we return total_products, the number of elements in the
-        // array that are actually used.
+        // In the current version of this function, we instead take a
+        // preallocated array, product_masses_buf, by reference, and we fill in
+        // the beginning of this array with the calculated product masses. If
+        // product_masses_buf to small to store the calculated product masses,
+        // we resize it so it is big enough. If product_masses_buf is bigger
+        // than necessary, we only fill in the beginning of it and leave the
+        // rest of the entries unchanged (in case the extra capacity is needed
+        // on subsequent calls). We return the total number of entries in the
+        // product_masses_buf that are actually used.
         //
-        // It is important to emphasize that product_masses.Length !=
-        // total_products in general. That is, the number of elements in the
-        // array does not equal the number of elements that are filled in with
-        // meaningful info.
-        public int CalculateProductMasses(ProductType[] productTypes, ref double[] product_masses, FastQSorter fast_q_sorter)
+        // It is important to emphasize that, in general,
+        // product_masses_buf.Length != the number of calculated product
+        // masses. That is, the number of elements in the array does not equal
+        // the number of elements that are filled in with meaningful info.
+        // 
+        // Note also that the fast_q_sorter object's internal state will be
+        // modified by this method.
+        public int CalculateProductMasses(ProductType[] productTypes, ref double[] product_masses_buf, FastQSorter fast_q_sorter)
         {
             // If product_masses isn't big enough to store all the product
             // masses we might want to store, resize it.
             int max_products = 2 * (Length - 1);
-            if(product_masses.Length < max_products)
+            if(product_masses_buf.Length < max_products)
             {
-                System.Array.Resize<double>(ref product_masses, max_products);
+                System.Array.Resize<double>(ref product_masses_buf, max_products);
             }
-            //List<double> product_masses = new List<double>(2 * (Length - 1));
 
+            // Calculate the product masses and store them in the prefix of
+            // product_masses_buf.
             int i = 0;
             for(int r = 1; r < Length; r++)
             {
-                //foreach(ProductType product_type in productTypes)
                 for(int p = 0; p < productTypes.Length; p++)
                 {
                     if(!(productTypes[p] == ProductType.c && r < Length && this[r] == 'P') &&
                        !(productTypes[p] == ProductType.zdot && Length - r < Length && this[Length - r] == 'P'))
                     {
                         double product_mass = CalculateProductMass(productTypes[p], r);
-                        //product_masses.Add(product_mass);
-                        product_masses[i] = product_mass;
+                        product_masses_buf[i] = product_mass;
                         ++i;
                     }
                 }
             }
             int total_products = i;
 
-            //product_masses.Sort();
-            //return product_masses;
-            //Nate old: System.Array.Sort<double>(product_masses, 0, total_products);
-            fast_q_sorter.Sort(product_masses, 0, total_products);
+            // Sort the product masses. Only the filled-in prefix of
+            // product_masses_buf is sorted.
+            fast_q_sorter.Sort(product_masses_buf, 0, total_products);
+
+            // Return the number of products, i.e., the size of the filled-in
+            // prefix of product_masses_buf.
             return total_products;
         }
 
